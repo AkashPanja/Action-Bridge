@@ -1,0 +1,409 @@
+{
+  "info": {
+    "name": "Action Bridge API (M1+M2)",
+    "description": "End-to-end test collection for Action Bridge: auth, projects, document types, bot submit, extraction foundations (credentials, providers, processing, jobs) and the extraction pipeline (profiles, playground, extract, submissions). Run folders top to bottom — key IDs chain automatically via collection variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": ["// baseUrl comes from the 'Action Bridge Local' environment."]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "token", "value": "" },
+    { "key": "projectId", "value": "" },
+    { "key": "typeId", "value": "" },
+    { "key": "documentId", "value": "" },
+    { "key": "credentialId", "value": "" },
+    { "key": "providerId", "value": "" },
+    { "key": "profileId", "value": "" },
+    { "key": "jobId", "value": "" },
+    { "key": "submissionId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Setup Status",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/auth/status" }
+        },
+        {
+          "name": "Setup Admin (first run only)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin123!\",\n  \"company_name\": \"Action Bridge\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/setup"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login ok', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "pm.collectionVariables.set('token', data.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "Me",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/auth/me" }
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "Create Project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('projectId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Invoices\",\n  \"description\": \"Postman test project\"\n}" },
+            "url": "{{baseUrl}}/api/v1/projects"
+          }
+        },
+        {
+          "name": "List Projects",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/projects" }
+        },
+        {
+          "name": "Project Stats",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/stats" }
+        }
+      ]
+    },
+    {
+      "name": "Document Types",
+      "item": [
+        {
+          "name": "Create Invoice Type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('typeId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invoice\",\n  \"schema_definition\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"invoice_number\": { \"type\": \"string\" },\n      \"total_amount\": { \"type\": \"number\" },\n      \"vendor\": { \"type\": \"string\" }\n    },\n    \"required\": [\"invoice_number\", \"total_amount\"]\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/document-types"
+          }
+        },
+        {
+          "name": "List Types",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/document-types" }
+        }
+      ]
+    },
+    {
+      "name": "Documents (bot submit + review)",
+      "item": [
+        {
+          "name": "Submit Document (bot)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('submitted', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('documentId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"extracted_data\": { \"invoice_number\": \"INV-001\", \"total_amount\": 150.0, \"vendor\": \"Acme\" },\n  \"confidence_scores\": { \"invoice_number\": 0.98, \"total_amount\": 0.95, \"vendor\": 0.9 }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/documents/document-types/{{typeId}}"
+          }
+        },
+        {
+          "name": "Inbox (pending_review)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/documents?status=pending_review" }
+        },
+        {
+          "name": "Approve Document",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"approved\",\n  \"comment\": \"Looks good\"\n}" },
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/documents/{{documentId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "M1 - Credentials",
+      "item": [
+        {
+          "name": "Create API-key Credential",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('credentialId', b.id);",
+                  "pm.test('secret never returned', () => {",
+                  "  pm.expect(pm.response.text()).to.not.include('sk-test-SECRET');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"openai-test\",\n  \"type\": \"api_key\",\n  \"payload\": { \"api_key\": \"sk-test-SECRET\", \"notes\": \"postman\" }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/credentials"
+          }
+        },
+        {
+          "name": "List Credentials",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/credentials" }
+        },
+        {
+          "name": "Test Credential",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/credentials/{{credentialId}}/test" }
+        }
+      ]
+    },
+    {
+      "name": "M1 - Providers",
+      "item": [
+        {
+          "name": "Create Provider (local Ollama)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('providerId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Local Ollama\",\n  \"kind\": \"openai_compatible\",\n  \"base_url\": \"http://localhost:11434/v1\",\n  \"model\": \"actionbridge-qwen25-3b\",\n  \"json_object\": true,\n  \"max_concurrency\": 1,\n  \"timeout_s\": 180,\n  \"is_local\": true,\n  \"context_window\": 8192,\n  \"enabled\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/llm-providers"
+          }
+        },
+        {
+          "name": "List Providers",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/llm-providers" }
+        },
+        {
+          "name": "Test Provider",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/llm-providers/{{providerId}}/test" }
+        }
+      ]
+    },
+    {
+      "name": "M1 - Processing + Jobs",
+      "item": [
+        {
+          "name": "Get Processing Settings",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/settings/processing" }
+        },
+        {
+          "name": "Update Processing Settings",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"cpu_workers\": 4,\n  \"max_jobs_in_flight\": 8\n}" },
+            "url": "{{baseUrl}}/api/v1/settings/processing"
+          }
+        },
+        {
+          "name": "Enqueue Ping Job",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('queued', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('jobId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"kind\": \"ping\",\n  \"payload\": { \"echo\": \"hello\" }\n}" },
+            "url": "{{baseUrl}}/api/v1/jobs"
+          }
+        },
+        {
+          "name": "Get Job (run worker to complete)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/jobs/{{jobId}}" }
+        },
+        {
+          "name": "Retry Job",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/jobs/{{jobId}}/retry" }
+        },
+        {
+          "name": "Cancel Job",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/jobs/{{jobId}}/cancel" }
+        }
+      ]
+    },
+    {
+      "name": "M2 - Profiles + Extract",
+      "item": [
+        {
+          "name": "Create Invoice Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('profileId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invoice profile\",\n  \"mode\": \"per_attachment\",\n  \"candidate_types\": [{ \"document_type_id\": \"{{typeId}}\", \"name\": \"Invoice\" }],\n  \"target_document_type_id\": \"{{typeId}}\",\n  \"provider_chain\": [\"{{providerId}}\"],\n  \"allow_cloud\": false\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/profiles"
+          }
+        },
+        {
+          "name": "Playground (text, no document created)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "text", "value": "Invoice INV-001\nVendor: Acme Corp\nTotal amount: 1500", "type": "text" }]
+            },
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/profiles/{{profileId}}/playground"
+          }
+        },
+        {
+          "name": "Extract Invoice (JSON + wait)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted or completed', () => pm.expect([200, 201]).to.include(pm.response.code));",
+                  "const b = pm.response.json();",
+                  "if (b.submission_id) pm.collectionVariables.set('submissionId', b.submission_id);",
+                  "if (b.job_id) pm.collectionVariables.set('jobId', b.job_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"document_type_id\": \"{{typeId}}\",\n  \"files\": [{ \"filename\": \"inv.txt\", \"content_base64\": \"SW52b2ljZSBJTlYtMDAxClZlbmRvcjogQWNtZSBDb3JwClRvdGFsIGFtb3VudDogMTUwMApEdWU6IDIwMjYtMTEtMDEK\" }],\n  \"idempotency_key\": \"postman-{{$timestamp}}\",\n  \"wait_seconds\": 30\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/extract/json"
+          }
+        },
+        {
+          "name": "Get Submission",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/submissions/{{submissionId}}" }
+        },
+        {
+          "name": "Project Jobs",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/projects/{{projectId}}/jobs" }
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Get Settings",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/settings" }
+        },
+        {
+          "name": "Send Test Email",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/settings/test-email" }
+        }
+      ]
+    }
+  ]
+}

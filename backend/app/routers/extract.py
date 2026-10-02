@@ -96,12 +96,13 @@ async def _maybe_wait(db: AsyncSession, job: Job, wait_seconds: int, project_id:
     if wait_seconds:
         deadline = asyncio.get_event_loop().time() + wait_seconds
         while asyncio.get_event_loop().time() < deadline:
-            fresh = await db.get(Job, job.id)
-            if fresh and fresh.status in ("succeeded", "failed", "cancelled"):
-                job = fresh
+            if job.status in ("succeeded", "failed", "cancelled"):
                 break
             await asyncio.sleep(1)
-            db.expire_all()
+            try:
+                await db.refresh(job)
+            except Exception:
+                break
     if job.status == "succeeded":
         result = job.result or {}
         doc_ids = result.get("document_ids", [])
