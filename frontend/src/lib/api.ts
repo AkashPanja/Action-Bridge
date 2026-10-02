@@ -1,4 +1,14 @@
 import type { Document, DocumentType, Project, RegexPattern } from "../types";
+import type {
+  Credential,
+  ExtractionProfile,
+  Job,
+  PlaygroundResult,
+  ProcessingSettings,
+  Provider,
+  ProviderTestResult,
+  Submission,
+} from "../types/extraction";
 
 const BASE_URL = "/api/v1";
 
@@ -18,6 +28,9 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   };
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  }
+  if (options?.body instanceof FormData) {
+    delete headers["Content-Type"]; // browser sets the multipart boundary
   }
   const res = await fetch(`${BASE_URL}${url}`, { ...options, headers });
   if (!res.ok) {
@@ -131,5 +144,85 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ ids }),
       }),
+  },
+  credentials: {
+    list: () => request<Credential[]>("/credentials"),
+    create: (data: { name: string; type: string; payload: Record<string, unknown> }) =>
+      request<Credential>("/credentials", { method: "POST", body: JSON.stringify(data) }),
+    replaceSecret: (id: string, payload: Record<string, unknown>) =>
+      request<Credential>(`/credentials/${id}`, { method: "PATCH", body: JSON.stringify({ payload }) }),
+    remove: (id: string) => request<void>(`/credentials/${id}`, { method: "DELETE" }),
+    test: (id: string) =>
+      request<{ ok: boolean; detail: string; latency_ms?: number; parsed?: boolean }>(
+        `/credentials/${id}/test`, { method: "POST" },
+      ),
+  },
+  providers: {
+    list: () => request<Provider[]>("/llm-providers"),
+    create: (data: Record<string, unknown>) =>
+      request<Provider>("/llm-providers", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: Record<string, unknown>) =>
+      request<Provider>(`/llm-providers/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    remove: (id: string) => request<void>(`/llm-providers/${id}`, { method: "DELETE" }),
+    test: (id: string) =>
+      request<ProviderTestResult>(`/llm-providers/${id}/test`, { method: "POST" }),
+  },
+  processing: {
+    get: () => request<ProcessingSettings>("/settings/processing"),
+    update: (data: Partial<ProcessingSettings>) =>
+      request<ProcessingSettings>("/settings/processing", { method: "PUT", body: JSON.stringify(data) }),
+  },
+  profiles: {
+    list: (projectId: string) =>
+      request<ExtractionProfile[]>(`/projects/${projectId}/profiles`),
+    create: (projectId: string, data: Record<string, unknown>) =>
+      request<ExtractionProfile>(`/projects/${projectId}/profiles`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (projectId: string, id: string, data: Record<string, unknown>) =>
+      request<ExtractionProfile>(`/projects/${projectId}/profiles/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    remove: (projectId: string, id: string) =>
+      request<void>(`/projects/${projectId}/profiles/${id}`, { method: "DELETE" }),
+    playground: (projectId: string, id: string, form: FormData) =>
+      request<PlaygroundResult>(`/projects/${projectId}/profiles/${id}/playground`, {
+        method: "POST",
+        headers: {},
+        body: form,
+      }),
+  },
+  extract: {
+    upload: (projectId: string, form: FormData) =>
+      request<{ job_id: string; submission_id: string; status: string }>(
+        `/projects/${projectId}/extract`, { method: "POST", headers: {}, body: form },
+      ),
+  },
+  jobs: {
+    get: (id: string) => request<Job>(`/jobs/${id}`),
+    listForProject: (projectId: string, params?: { status?: string; kind?: string }) => {
+      const qs = new URLSearchParams();
+      if (params?.status) qs.set("status", params.status);
+      if (params?.kind) qs.set("kind", params.kind);
+      const q = qs.toString();
+      return request<{ total: number; jobs: Job[] }>(
+        `/projects/${projectId}/jobs${q ? `?${q}` : ""}`,
+      );
+    },
+    retry: (id: string) => request<Job>(`/jobs/${id}/retry`, { method: "POST" }),
+    cancel: (id: string) => request<Job>(`/jobs/${id}/cancel`, { method: "POST" }),
+  },
+  submissions: {
+    get: (id: string) => request<Submission>(`/submissions/${id}`),
+    fileBlob: async (submissionId: string, fileId: string): Promise<string> => {
+      const res = await fetch(
+        `${BASE_URL}/submissions/${submissionId}/files/${fileId}/content`,
+        { headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {} },
+      );
+      if (!res.ok) throw new Error("Could not load file");
+      return URL.createObjectURL(await res.blob());
+    },
   },
 };

@@ -1,14 +1,17 @@
-import { AlertTriangle, Building2, KeyRound, Mail, Save, Send, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Building2, Cpu, KeyRound, Mail, Save, Send, Server, Trash2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { LogoCropper } from "../components/settings/LogoCropper";
 import { useAuth } from "../contexts/AuthContext";
+import { CredentialsPage } from "./extraction/CredentialsPage";
+import { ProcessingPage } from "./extraction/ProcessingPage";
+import { ProvidersPage } from "./extraction/ProvidersPage";
 
 const API_BASE = "/api/v1";
 
-type Tab = "company" | "smtp" | "password" | "danger";
+type Tab = "company" | "smtp" | "password" | "providers" | "credentials" | "processing" | "danger";
 
 interface CompanySettings {
   name: string;
@@ -205,6 +208,9 @@ export function SettingsPage() {
     { key: "company", label: "Company", icon: <Building2 className="h-4 w-4" /> },
     { key: "smtp", label: "SMTP", icon: <Mail className="h-4 w-4" /> },
     { key: "password", label: "Password Policy", icon: <KeyRound className="h-4 w-4" /> },
+    { key: "providers", label: "Providers", icon: <Server className="h-4 w-4" /> },
+    { key: "credentials", label: "Credentials", icon: <KeyRound className="h-4 w-4" /> },
+    { key: "processing", label: "Processing", icon: <Cpu className="h-4 w-4" /> },
     { key: "danger", label: "Danger Zone", icon: <Trash2 className="h-4 w-4" /> },
   ];
 
@@ -395,6 +401,12 @@ export function SettingsPage() {
           </div>
         </Card>
       )}
+
+      {tab === "providers" && <ProvidersPage />}
+
+      {tab === "credentials" && <CredentialsPage />}
+
+      {tab === "processing" && <ProcessingPage />}
 
       {tab === "danger" && (
         <Card>

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, History, Link, MessageSquare, Paperclip, Plus, Send, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, History, Link, MessageSquare, Paperclip, Plus, ScanSearch, Send, Trash2, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "../../components/ui/Badge";
@@ -8,6 +8,7 @@ import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { AnimatedPage } from "../../components/shared/AnimatedPage";
+import { SourceFilesPanel } from "../../components/extraction/SourceFilesPanel";
 import { useAuth } from "../../contexts/AuthContext";
 import { useDocument, useUpdateDocument } from "../../hooks/useDocuments";
 import { useDocumentType } from "../../hooks/useDocumentTypes";
@@ -471,6 +472,11 @@ export function DocumentDetail() {
             <span className={`rounded-full px-3 py-0.5 text-xs font-medium ${statusColors[doc.status] ?? ""}`}>
               {doc.status.replace(/_/g, " ")}
             </span>
+            {doc.source ? (
+              <span className="rounded-full bg-brand-100 px-3 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
+                via {doc.source}
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 text-sm text-surface-500">
             Created {formatDate(doc.created_at)}
@@ -761,6 +767,35 @@ export function DocumentDetail() {
         </div>
 
         <div className="lg:col-span-1 space-y-4">
+          {doc.source || doc.submission_id ? (
+            <Card>
+              <div className="mb-4 flex items-center gap-2">
+                <ScanSearch className="h-4 w-4 text-surface-400" />
+                <h2 className="text-sm font-semibold text-surface-900 dark:text-surface-100">Extraction Source</h2>
+              </div>
+              {doc.extraction_meta ? (
+                <dl className="mb-3 space-y-1 text-xs">
+                  {(
+                    [
+                      ["Provider", doc.extraction_meta.provider],
+                      ["Model", doc.extraction_meta.model],
+                      ["Tokens in/out", doc.extraction_meta.tokens_in != null || doc.extraction_meta.tokens_out != null
+                        ? `${doc.extraction_meta.tokens_in ?? "?"} / ${doc.extraction_meta.tokens_out ?? "?"}`
+                        : null],
+                      ["Latency", doc.extraction_meta.latency_ms != null ? `${doc.extraction_meta.latency_ms} ms` : null],
+                      ["Prompt", doc.extraction_meta.prompt_version != null ? `v${doc.extraction_meta.prompt_version}` : null],
+                    ] as [string, unknown][]
+                  ).filter(([, v]) => v != null && v !== "").map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-between gap-2">
+                      <dt className="text-surface-400">{k}</dt>
+                      <dd className="truncate font-medium text-surface-700 dark:text-surface-200">{String(v)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+              {doc.submission_id ? <SourceFilesPanel submissionId={doc.submission_id} /> : null}
+            </Card>
+          ) : null}
           <Card>
             <div className="mb-4 flex items-center gap-2">
               <History className="h-4 w-4 text-surface-400" />

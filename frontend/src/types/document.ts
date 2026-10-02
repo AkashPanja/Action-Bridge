@@ -22,4 +22,7 @@ export interface Document {
   updated_at: string;
   history?: AuditEvent[] | null;
   document_type_name?: string | null;
+  submission_id?: string | null;
+  source?: string | null;
+  extraction_meta?: Record<string, unknown> | null;
 }

@@ -1,14 +1,16 @@
 import { motion } from "framer-motion";
-import { FileDown, FileText, Filter, Inbox, RotateCcw, Search, Trash2 } from "lucide-react";
+import { FileDown, FileText, Filter, Inbox, RotateCcw, Search, Trash2, UploadCloud } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { can } from "../../lib/rbac";
 import { Badge } from "../../components/ui/Badge";
+import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { CardSkeleton } from "../../components/ui/Skeleton";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Input } from "../../components/ui/Input";
+import { UploadModal } from "../../components/extraction/UploadModal";
 import { useDocumentTypes } from "../../hooks/useDocumentTypes";
 import { useBulkDeleteDocuments, useDocuments } from "../../hooks/useDocuments";
 import { formatDate } from "../../lib/utils";
@@ -47,6 +49,7 @@ export function DocumentInbox({ projectId }: Props) {
   const [confidenceMax, setConfidenceMax] = useState("");
   const [sortBy, setSortBy] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [uploadOpen, setUploadOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -135,7 +138,13 @@ export function DocumentInbox({ projectId }: Props) {
             </option>
           ))}
         </select>
+        {canWrite ? (
+          <Button size="sm" onClick={() => setUploadOpen(true)} className="ml-auto">
+            <UploadCloud className="h-4 w-4" /> Upload
+          </Button>
+        ) : null}
       </div>
+      <UploadModal projectId={projectId} open={uploadOpen} onClose={() => setUploadOpen(false)} />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <input

@@ -10,6 +10,11 @@ const GLOBAL_PERMISSION_MAP: Record<string, string[]> = {
   "users:manage": ["admin"],
   "settings:read": ["admin"],
   "settings:write": ["admin"],
+  "credentials:manage": ["admin"],
+  "providers:manage": ["admin"],
+  "processing:manage": ["admin"],
+  "jobs:read": ["admin", "editor", "viewer"],
+  "jobs:write": ["admin"],
 };
 
 export function can(role: string | undefined, permission: string): boolean {

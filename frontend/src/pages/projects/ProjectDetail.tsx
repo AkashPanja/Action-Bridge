@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { FileType, Inbox, Key, LayoutDashboard, Users } from "lucide-react";
+import { FileType, Inbox, Key, LayoutDashboard, ScanSearch, Users, Workflow } from "lucide-react";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { AnimatedPage } from "../../components/shared/AnimatedPage";
@@ -12,6 +12,8 @@ import { DocumentInbox } from "../documents/DocumentInbox";
 import { DocumentTypeList } from "../document-types/DocumentTypeList";
 import { MembersPage } from "../MembersPage";
 import { ProjectDashboard } from "../ProjectDashboard";
+import { JobsPage } from "../extraction/JobsPage";
+import { ProfilesPage } from "../extraction/ProfilesPage";
 
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -25,6 +27,10 @@ export function ProjectDetail() {
     { id: "documents", label: "Documents", icon: Inbox },
     { id: "document-types", label: "Document Types", icon: FileType },
     { id: "members", label: "Members", icon: Users },
+    { id: "jobs", label: "Jobs", icon: Workflow },
+    ...(user && (user.role === "admin" || user.role === "editor")
+      ? [{ id: "profiles", label: "Extraction", icon: ScanSearch }]
+      : []),
     ...(user && can(user.role, "api_keys:manage")
       ? [{ id: "api-keys", label: "API Keys", icon: Key }]
       : []),
@@ -73,6 +79,10 @@ export function ProjectDetail() {
             <DocumentTypeList projectId={projectId} />
           ) : activeTab === "members" ? (
             <MembersPage projectId={projectId!} />
+          ) : activeTab === "jobs" ? (
+            <JobsPage projectId={projectId!} />
+          ) : activeTab === "profiles" ? (
+            <ProfilesPage projectId={projectId!} />
           ) : (
             <ApiKeys />
           )}
