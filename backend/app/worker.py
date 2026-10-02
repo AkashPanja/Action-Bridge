@@ -12,6 +12,7 @@ import os
 import signal
 
 from app.services import job_service
+from app.services import pipeline  # noqa: F401 - registers extract/webhook job kinds
 from app.services.job_service import AsyncSessionLocal
 
 logger = logging.getLogger("app.worker")

@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     upload_dir: str = "./uploads"
     frontend_url: str = "http://localhost:5173"
     app_encryption_key: str = ""
+    file_store_dir: str = "./filestore"
+    max_extract_file_mb: int = 25
 
     @property
     def is_postgres(self) -> bool:

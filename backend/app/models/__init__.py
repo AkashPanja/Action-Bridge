@@ -17,6 +17,8 @@ from .llm_provider import LlmProvider
 from .processing_setting import ProcessingSetting
 from .job import Job
 from .provider_call import ProviderCall
+from .extraction_profile import ExtractionProfile
+from .submission import Submission, SubmissionFile
 
 __all__ = [
     "Base", "Project", "ProjectMembership", "DocumentType",
@@ -25,4 +27,5 @@ __all__ = [
     "AuditEvent", "AuditLog", "ApiKeyProjectScope",
     "AppSetting", "RegexPattern",
     "Credential", "LlmProvider", "ProcessingSetting", "Job", "ProviderCall",
+    "ExtractionProfile", "Submission", "SubmissionFile",
 ]

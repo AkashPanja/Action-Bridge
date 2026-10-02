@@ -100,7 +100,7 @@ class TestCredentials:
         created = (await _create_cred(client, admin_headers)).json()
         prov = await client.post("/api/v1/llm-providers", headers=admin_headers, json={
             "name": "p1", "kind": "openai_compatible",
-            "base_url": "http://localhost:11434/v1",
+            "base_url": "http://localhost:11434/v1", "is_local": True,
             "credential_id": created["id"], "model": "m",
         })
         assert prov.status_code == 201, prov.text
@@ -137,6 +137,7 @@ class TestCredentials:
 PROVIDER = {
     "name": "local", "kind": "openai_compatible",
     "base_url": "http://localhost:11434/v1", "model": "qwen2.5:3b",
+    "is_local": True,
 }
 
 
@@ -221,7 +222,7 @@ class TestProviders:
         calls = (await db_session.execute(select(ProviderCall))).scalars().all()
         assert len(calls) == 1
         assert calls[0].ok is False
-        assert calls[0].local is False
+        assert calls[0].local is True
 
     async def test_seed_default_once(self, db_session):
         from app.services.provider_service import ensure_default_provider

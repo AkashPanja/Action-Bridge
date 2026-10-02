@@ -157,6 +157,7 @@ async def submit_document(
     data: dict,
     confidence_scores: dict | None = None,
     actor: str = "rpa_bot",
+    force_pending_review: bool = False,
 ) -> DocumentInstance | str:
     project = await get_project(db, project_id)
     if not project:
@@ -249,7 +250,10 @@ async def submit_document(
 
     all_issues = schema_errors + rule_errors
 
-    if all_issues:
+    if all_issues or force_pending_review:
+        comment = "Validation issues: " + "; ".join(all_issues) if all_issues else (
+            "Extractor submission requires human review (auto-approve skipped)"
+        )
         doc.status = "pending_review"
         audit2 = AuditEvent(
             document_id=doc.id,
@@ -258,7 +262,7 @@ async def submit_document(
             field_name="status",
             old_value={"status": "received"},
             new_value={"status": "pending_review"},
-            comment="Validation issues: " + "; ".join(all_issues),
+            comment=comment,
         )
     else:
         doc.status = "approved"

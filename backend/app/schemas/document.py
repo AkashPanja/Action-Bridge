@@ -42,6 +42,9 @@ class DocumentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     history: list[AuditEventResponse] | None = None
+    submission_id: str | None = None
+    source: str | None = None
+    extraction_meta: dict | None = None
 
 
 class DocumentListResponse(BaseModel):
@@ -57,3 +60,6 @@ class DocumentListResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     document_type_name: str | None = None
+    submission_id: str | None = None
+    source: str | None = None
+    extraction_meta: dict | None = None

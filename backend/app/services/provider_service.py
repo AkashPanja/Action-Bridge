@@ -72,6 +72,9 @@ async def create_provider(db: AsyncSession, data: dict) -> LlmProvider:
             raise ValueError("Credential not found")
         if cred.type != "api_key":
             raise ValueError("Providers require an api_key credential")
+    from app.services import ingestion as _ingestion
+
+    _ingestion.validate_provider_url(data["base_url"], bool(data.get("is_local", False)))
     provider = LlmProvider(
         name=data["name"],
         kind=data["kind"],
@@ -111,6 +114,9 @@ async def update_provider(db: AsyncSession, provider: LlmProvider, data: dict) -
             if not cred:
                 raise ValueError("Credential not found")
         provider.credential_id = data["credential_id"]
+    from app.services import ingestion as _ingestion
+
+    _ingestion.validate_provider_url(provider.base_url, bool(provider.is_local))
     await db.commit()
     await db.refresh(provider)
     return provider

@@ -15,14 +15,17 @@ from app.routers import (
     credentials,
     document_types,
     documents,
+    extract,
     invitations,
     jobs,
     llm_providers,
     notifications,
     processing,
+    profiles,
     projects,
     regex_patterns,
     settings as settings_router,
+    submissions,
     subscriptions,
 )
 
@@ -71,6 +74,9 @@ app.include_router(documents.router)
 app.include_router(credentials.router)
 app.include_router(llm_providers.router)
 app.include_router(processing.router)
+app.include_router(profiles.router)
+app.include_router(extract.router)
+app.include_router(submissions.router)
 app.include_router(jobs.router)
 app.include_router(regex_patterns.router)
 app.include_router(settings_router.router)

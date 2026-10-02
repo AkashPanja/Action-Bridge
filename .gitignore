@@ -40,3 +40,4 @@ backend/.env
 
 # Uploads (runtime data)
 uploads/
+filestore/
