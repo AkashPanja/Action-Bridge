@@ -37,7 +37,13 @@ vi.mock("../hooks/useExtraction", () => ({
 }));
 
 vi.mock("../lib/api", () => ({
-  api: { providers: { test: vi.fn() } },
+  api: {
+    providers: {
+      test: vi.fn(),
+      ollamaModels: vi.fn().mockResolvedValue({ ok: true, models: [], detail: "0 models" }),
+      ollamaPull: vi.fn(),
+    },
+  },
 }));
 
 vi.mock("../hooks/useDocumentTypes", () => ({

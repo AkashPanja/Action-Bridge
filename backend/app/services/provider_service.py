@@ -164,6 +164,82 @@ async def list_models(db: AsyncSession, provider: LlmProvider) -> dict:
     return {"supported": True, "models": sorted(ids), "detail": f"{len(ids)} model(s) found."}
 
 
+def _ollama_base(base_url: str) -> str:
+    from urllib.parse import urlparse
+
+    parsed = urlparse(base_url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("Ollama URL must be http(s)")
+    if parsed.username or parsed.password:
+        raise ValueError("Ollama URL must not contain credentials")
+    host = parsed.hostname or ""
+    if not host:
+        raise ValueError("Ollama URL needs a host")
+    # Strip a trailing /v1 (OpenAI-compat base) back to the Ollama root.
+    root = f"{parsed.scheme}://{host}"
+    if parsed.port:
+        root += f":{parsed.port}"
+    return root
+
+
+async def list_ollama_models(base_url: str) -> dict:
+    """List models installed on an Ollama server (no auth needed)."""
+    import httpx
+
+    root = _ollama_base(base_url)
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"{root}/api/tags")
+    except httpx.HTTPError as exc:
+        return {"ok": False, "models": [], "detail": f"Could not reach Ollama: {exc}"}
+    if resp.status_code != 200:
+        return {"ok": False, "models": [], "detail": f"Ollama returned {resp.status_code}"}
+    try:
+        models = [
+            {"name": m.get("name", ""), "size": m.get("size", 0),
+             "modified": (m.get("modified_at") or "")[:10]}
+            for m in resp.json().get("models", [])
+            if m.get("name")
+        ]
+    except ValueError:
+        return {"ok": False, "models": [], "detail": "Non-JSON response from Ollama."}
+    return {"ok": True, "models": sorted(models, key=lambda m: m["name"]),
+            "detail": f"{len(models)} model(s) installed."}
+
+
+async def pull_ollama_model(base_url: str, name: str) -> dict:
+    """Pull (download) a model into Ollama. Consumes the progress stream."""
+    import httpx
+
+    root = _ollama_base(base_url)
+    name = (name or "").strip()
+    if not name or len(name) > 200 or any(ch.isspace() for ch in name):
+        return {"ok": False, "detail": "Invalid model name."}
+    try:
+        async with httpx.AsyncClient(timeout=60 * 20) as client:
+            async with client.stream("POST", f"{root}/api/pull", json={"name": name, "stream": True}) as resp:
+                if resp.status_code != 200:
+                    return {"ok": False, "detail": f"Ollama returned {resp.status_code}"}
+                last: dict = {}
+                async for line in resp.aiter_lines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        import json as _json
+
+                        last = _json.loads(line)
+                    except ValueError:
+                        continue
+                    if last.get("error"):
+                        return {"ok": False, "detail": last["error"]}
+    except httpx.HTTPError as exc:
+        return {"ok": False, "detail": f"Pull failed: {exc}"}
+    if "success" in str(last.get("status", "")).lower():
+        return {"ok": True, "detail": f"Pulled {name}."}
+    return {"ok": False, "detail": f"Pull did not complete: {last.get('status', 'unknown')}"}
+
+
 async def log_call(
     db: AsyncSession,
     provider: LlmProvider,

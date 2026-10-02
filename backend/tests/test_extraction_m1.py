@@ -312,6 +312,111 @@ class TestProviderCloud:
         assert adapter.extra_headers == {"X-A": "b"}
 
 
+class FakeOllamaResp:
+    def __init__(self, status=200, payload=None):
+        self.status_code = status
+        self._payload = payload or {}
+
+    def json(self):
+        return self._payload
+
+
+class FakeOllamaStream:
+    def __init__(self, lines):
+        self._lines = lines
+        self.status_code = 200
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    async def aiter_lines(self):
+        for line in self._lines:
+            yield line
+
+
+class FakeOllamaClient:
+    mode = "list"
+    lines = ['{"status": "success"}']
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    async def get(self, url):
+        import httpx as _httpx
+
+        if "unreachable" in url:
+            raise _httpx.ConnectError("refused")
+        return FakeOllamaResp(200, {"models": [
+            {"name": "gemma4:e2b", "size": 4600000000, "modified_at": "2026-10-02T10:00:00Z"},
+        ]})
+
+    def stream(self, method, url, **kwargs):
+        return FakeOllamaStream(list(FakeOllamaClient.lines))
+
+
+class TestOllamaEndpoints:
+    async def test_list_models(self, client: AsyncClient, admin_headers, monkeypatch):
+        monkeypatch.setattr("httpx.AsyncClient", FakeOllamaClient)
+        resp = await client.get(
+            "/api/v1/llm-providers/ollama/models",
+            headers=admin_headers, params={"base_url": "http://localhost:11434"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["ok"] is True
+        assert body["models"][0]["name"] == "gemma4:e2b"
+
+    async def test_list_unreachable(self, client: AsyncClient, admin_headers, monkeypatch):
+        monkeypatch.setattr("httpx.AsyncClient", FakeOllamaClient)
+        resp = await client.get(
+            "/api/v1/llm-providers/ollama/models",
+            headers=admin_headers, params={"base_url": "http://unreachable:11434"},
+        )
+        assert resp.json()["ok"] is False
+
+    async def test_list_bad_scheme(self, client: AsyncClient, admin_headers):
+        resp = await client.get(
+            "/api/v1/llm-providers/ollama/models",
+            headers=admin_headers, params={"base_url": "ftp://x"},
+        )
+        assert resp.status_code == 400
+
+    async def test_pull_success(self, client: AsyncClient, admin_headers, monkeypatch):
+        FakeOllamaClient.lines = ['{"status": "pulling"}', '{"status": "success"}']
+        monkeypatch.setattr("httpx.AsyncClient", FakeOllamaClient)
+        resp = await client.post("/api/v1/llm-providers/ollama/pull", headers=admin_headers, json={
+            "base_url": "http://localhost:11434", "name": "gemma4:e2b",
+        })
+        assert resp.json() == {"ok": True, "detail": "Pulled gemma4:e2b."}
+
+    async def test_pull_error(self, client: AsyncClient, admin_headers, monkeypatch):
+        FakeOllamaClient.lines = ['{"error": "not found"}']
+        monkeypatch.setattr("httpx.AsyncClient", FakeOllamaClient)
+        resp = await client.post("/api/v1/llm-providers/ollama/pull", headers=admin_headers, json={
+            "base_url": "http://localhost:11434", "name": "nope",
+        })
+        assert resp.json()["ok"] is False
+
+    async def test_pull_bad_name(self, client: AsyncClient, admin_headers, monkeypatch):
+        monkeypatch.setattr("httpx.AsyncClient", FakeOllamaClient)
+        resp = await client.post("/api/v1/llm-providers/ollama/pull", headers=admin_headers, json={
+            "base_url": "http://localhost:11434", "name": "has space",
+        })
+        assert resp.json()["ok"] is False
+
+    async def test_viewer_forbidden(self, client: AsyncClient, viewer_headers):
+        assert (await client.get("/api/v1/llm-providers/ollama/models", headers=viewer_headers)).status_code == 403
+
+
 # --- Processing settings ---
 
 class TestProcessing:

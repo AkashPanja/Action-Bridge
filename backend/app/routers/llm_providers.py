@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,33 @@ router = APIRouter(prefix="/api/v1/llm-providers", tags=["Providers"])
 @router.get("/presets", response_model=list[dict])
 async def get_presets(user=Depends(RequirePermission("providers:manage"))):
     return list_presets()
+
+
+@router.get("/ollama/models")
+async def get_ollama_models(
+    base_url: str = "http://localhost:11434",
+    user=Depends(RequirePermission("providers:manage")),
+):
+    try:
+        return await provider_service.list_ollama_models(base_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+class OllamaPullRequest(BaseModel):
+    base_url: str = "http://localhost:11434"
+    name: str
+
+
+@router.post("/ollama/pull")
+async def pull_ollama_model(
+    data: OllamaPullRequest,
+    user=Depends(RequirePermission("providers:manage")),
+):
+    try:
+        return await provider_service.pull_ollama_model(data.base_url, data.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.get("", response_model=list[ProviderResponse])

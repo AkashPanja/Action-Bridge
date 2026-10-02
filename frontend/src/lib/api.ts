@@ -165,6 +165,15 @@ export const api = {
       request<{ supported: boolean; models: string[]; detail: string }>(
         `/llm-providers/${id}/models`, { method: "POST" },
       ),
+    ollamaModels: (baseUrl: string) =>
+      request<{ ok: boolean; models: { name: string; size: number; modified: string }[]; detail: string }>(
+        `/llm-providers/ollama/models?base_url=${encodeURIComponent(baseUrl)}`,
+      ),
+    ollamaPull: (baseUrl: string, name: string) =>
+      request<{ ok: boolean; detail: string }>(`/llm-providers/ollama/pull`, {
+        method: "POST",
+        body: JSON.stringify({ base_url: baseUrl, name }),
+      }),
     create: (data: Record<string, unknown>) =>
       request<Provider>("/llm-providers", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: Record<string, unknown>) =>

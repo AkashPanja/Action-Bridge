@@ -4,6 +4,7 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Dialog } from "../../components/ui/Dialog";
 import { Input } from "../../components/ui/Input";
+import { OllamaModelsPanel } from "../../components/extraction/OllamaModelsPanel";
 import { useCredentialMutations, useCredentials } from "../../hooks/useExtraction";
 import { useProviderMutations, useProviderPresets, useProviders } from "../../hooks/useExtraction";
 import { api } from "../../lib/api";
@@ -43,6 +44,29 @@ export function ProvidersPage() {
 
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
+  function openOllamaModel(model: string, baseUrl: string) {
+    const local = /^(https?:\/\/)?(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(baseUrl.trim());
+    setEditing(null);
+    setActivePreset(null);
+    setForm({
+      ...EMPTY,
+      name: `Ollama ${model}`,
+      kind: "openai_compatible",
+      base_url: `${baseUrl.trim().replace(/\/+$/, "")}/v1`,
+      model,
+      json_object: true,
+      json_schema: false,
+      is_local: local,
+      max_concurrency: 1,
+    });
+    setExtraHeadersText("{}");
+    setNewKey("");
+    setModelOptions(null);
+    setModelMsg("");
+    setError("");
+    setFormOpen(true);
+  }
+
   function openCreate() {
     setEditing(null);
     setActivePreset(null);
@@ -79,8 +103,7 @@ export function ProvidersPage() {
     setFormOpen(true);
   }
 
-  function openEdit(p: Provider) {
-    setEditing(p);
+  function openEdit(p: Provider) {    setEditing(p);
     setActivePreset(null);
     setForm({ ...EMPTY, ...p, credential_id: p.credential_id ?? "" });
     setExtraHeadersText(JSON.stringify(p.extra_headers ?? {}, null, 2));
@@ -182,6 +205,16 @@ export function ProvidersPage() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100">Local Ollama models</h3>
+        <p className="mt-0.5 text-xs text-surface-400">
+          Anything installed (or pulled) in Ollama can back a provider — no fixed model list.
+        </p>
+        <div className="mt-3">
+          <OllamaModelsPanel onUseModel={openOllamaModel} />
+        </div>
+      </div>
+
       <div>
         <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100">Cloud runners — quick add</h3>
         <p className="mt-0.5 text-xs text-surface-400">

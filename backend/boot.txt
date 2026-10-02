@@ -1,0 +1,621 @@
+2026-10-02 23:17:12,841 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:17:12,841 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("projects")
+2026-10-02 23:17:12,841 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("api_key_project_scopes")
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("audit_events")
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("audit_logs")
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("document_attachments")
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("document_comments")
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("document_instances")
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("doc_type_subscriptions")
+2026-10-02 23:17:12,857 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("document_types")
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("notifications")
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("project_memberships")
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("regex_rules")
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("app_settings")
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("credentials")
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("llm_providers")
+2026-10-02 23:17:12,873 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("processing_settings")
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("jobs")
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("provider_calls")
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("extraction_profiles")
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("submissions")
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("submission_files")
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("users")
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,889 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("api_keys")
+2026-10-02 23:17:12,905 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-10-02 23:17:12,905 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:17:12,905 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:17:12,921 INFO sqlalchemy.engine.Engine SELECT credentials.id 
+FROM credentials
+ LIMIT ? OFFSET ?
+2026-10-02 23:17:12,921 INFO sqlalchemy.engine.Engine [generated in 0.00107s] (1, 0)
+2026-10-02 23:17:12,935 INFO sqlalchemy.engine.Engine SELECT llm_providers.id, llm_providers.name, llm_providers.kind, llm_providers.base_url, llm_providers.credential_id, llm_providers.model, llm_providers.vision, llm_providers.json_schema, llm_providers.json_object, llm_providers.max_concurrency, llm_providers.timeout_s, llm_providers.is_local, llm_providers.context_window, llm_providers.enabled, llm_providers.extra_headers, llm_providers.created_at, llm_providers.updated_at 
+FROM llm_providers
+ LIMIT ? OFFSET ?
+2026-10-02 23:17:12,935 INFO sqlalchemy.engine.Engine [generated in 0.00095s] (1, 0)
+2026-10-02 23:17:12,939 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:61633 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62989 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63342 - "GET /api/v1/auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63344 - "GET /api/v1/auth/status HTTP/1.1" 200 OK
+2026-10-02 23:23:53,307 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:53,311 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:53,312 INFO sqlalchemy.engine.Engine [generated in 0.00129s] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:53,314 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:53,314 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:53,314 INFO sqlalchemy.engine.Engine [cached since 0.005729s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:53,317 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:53,318 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:53,319 INFO sqlalchemy.engine.Engine [cached since 0.008919s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:53,321 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:53,322 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:53,323 INFO sqlalchemy.engine.Engine [cached since 0.01221s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:53,326 INFO sqlalchemy.engine.Engine SELECT notifications.id, notifications.user_id, notifications.document_id, notifications.type, notifications.title, notifications.message, notifications.is_read, notifications.created_at 
+FROM notifications 
+WHERE notifications.user_id = ? ORDER BY notifications.created_at DESC
+ LIMIT ? OFFSET ?
+2026-10-02 23:23:53,327 INFO sqlalchemy.engine.Engine [generated in 0.00077s] ('734a2225-c8d0-4c5f-abf1-8db03e26d521', 10, 0)
+2026-10-02 23:23:53,329 INFO sqlalchemy.engine.Engine SELECT projects.id, projects.name, projects.description, projects.created_by, projects.visibility, projects.is_deleted, projects.created_at, projects.updated_at 
+FROM projects 
+WHERE projects.is_deleted = 0 ORDER BY projects.created_at DESC
+2026-10-02 23:23:53,329 INFO sqlalchemy.engine.Engine [generated in 0.00069s] ()
+2026-10-02 23:23:53,331 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:53,332 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:53,333 INFO sqlalchemy.engine.Engine [cached since 0.02275s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:53,333 INFO sqlalchemy.engine.Engine SELECT project_memberships.id, project_memberships.project_id, project_memberships.user_id, project_memberships.access_level, project_memberships.status, project_memberships.invited_by, project_memberships.created_at, project_memberships.updated_at, projects.name 
+FROM project_memberships JOIN projects ON project_memberships.project_id = projects.id 
+WHERE project_memberships.user_id = ? AND project_memberships.status = ? ORDER BY project_memberships.created_at DESC
+2026-10-02 23:23:53,333 INFO sqlalchemy.engine.Engine [generated in 0.00079s] ('734a2225-c8d0-4c5f-abf1-8db03e26d521', 'pending')
+2026-10-02 23:23:53,340 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:23:53,340 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:64207 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+2026-10-02 23:23:53,345 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:23:53,346 INFO sqlalchemy.engine.Engine SELECT app_settings."key", app_settings.value 
+FROM app_settings 
+WHERE app_settings."key" = ?
+2026-10-02 23:23:53,346 INFO sqlalchemy.engine.Engine [generated in 0.00089s] ('company',)
+2026-10-02 23:23:53,346 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:64204 - "GET /api/v1/notifications?limit=10 HTTP/1.1" 200 OK
+2026-10-02 23:23:53,353 INFO sqlalchemy.engine.Engine SELECT app_settings."key", app_settings.value 
+FROM app_settings 
+WHERE app_settings."key" = ?
+2026-10-02 23:23:53,353 INFO sqlalchemy.engine.Engine [cached since 0.007332s ago] ('smtp',)
+INFO:     127.0.0.1:63349 - "GET /api/v1/projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64203 - "GET /api/v1/invitations HTTP/1.1" 200 OK
+2026-10-02 23:23:53,366 INFO sqlalchemy.engine.Engine SELECT app_settings."key", app_settings.value 
+FROM app_settings 
+WHERE app_settings."key" = ?
+2026-10-02 23:23:53,366 INFO sqlalchemy.engine.Engine [cached since 0.01869s ago] ('password_policy',)
+2026-10-02 23:23:53,381 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:23:53,395 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:53,395 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:53,395 INFO sqlalchemy.engine.Engine [cached since 0.08614s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:53,395 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:53,395 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:53,395 INFO sqlalchemy.engine.Engine [cached since 0.08911s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+INFO:     127.0.0.1:64205 - "GET /api/v1/settings HTTP/1.1" 200 OK
+2026-10-02 23:23:53,402 INFO sqlalchemy.engine.Engine SELECT notifications.id, notifications.user_id, notifications.document_id, notifications.type, notifications.title, notifications.message, notifications.is_read, notifications.created_at 
+FROM notifications 
+WHERE notifications.user_id = ? ORDER BY notifications.created_at DESC
+ LIMIT ? OFFSET ?
+2026-10-02 23:23:53,402 INFO sqlalchemy.engine.Engine [cached since 0.07703s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521', 10, 0)
+2026-10-02 23:23:53,402 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:53,402 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:53,402 INFO sqlalchemy.engine.Engine [cached since 0.09619s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:53,409 INFO sqlalchemy.engine.Engine SELECT projects.id, projects.name, projects.description, projects.created_by, projects.visibility, projects.is_deleted, projects.created_at, projects.updated_at 
+FROM projects 
+WHERE projects.is_deleted = 0 ORDER BY projects.created_at DESC
+2026-10-02 23:23:53,409 INFO sqlalchemy.engine.Engine [cached since 0.0807s ago] ()
+2026-10-02 23:23:53,411 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:23:53,414 INFO sqlalchemy.engine.Engine SELECT project_memberships.id, project_memberships.project_id, project_memberships.user_id, project_memberships.access_level, project_memberships.status, project_memberships.invited_by, project_memberships.created_at, project_memberships.updated_at, projects.name 
+FROM project_memberships JOIN projects ON project_memberships.project_id = projects.id 
+WHERE project_memberships.user_id = ? AND project_memberships.status = ? ORDER BY project_memberships.created_at DESC
+2026-10-02 23:23:53,414 INFO sqlalchemy.engine.Engine [cached since 0.07868s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521', 'pending')
+INFO:     127.0.0.1:65504 - "GET /api/v1/notifications?limit=10 HTTP/1.1" 200 OK
+2026-10-02 23:23:53,415 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:23:53,415 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:59077 - "GET /api/v1/projects HTTP/1.1" 200 OK
+2026-10-02 23:23:53,422 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:53,423 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:53,423 INFO sqlalchemy.engine.Engine [cached since 0.1139s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+INFO:     127.0.0.1:58018 - "GET /api/v1/invitations HTTP/1.1" 200 OK
+2026-10-02 23:23:53,425 INFO sqlalchemy.engine.Engine SELECT app_settings."key", app_settings.value 
+FROM app_settings 
+WHERE app_settings."key" = ?
+2026-10-02 23:23:53,428 INFO sqlalchemy.engine.Engine [cached since 0.08075s ago] ('company',)
+2026-10-02 23:23:53,430 INFO sqlalchemy.engine.Engine SELECT app_settings."key", app_settings.value 
+FROM app_settings 
+WHERE app_settings."key" = ?
+2026-10-02 23:23:53,430 INFO sqlalchemy.engine.Engine [cached since 0.0834s ago] ('smtp',)
+2026-10-02 23:23:53,430 INFO sqlalchemy.engine.Engine SELECT app_settings."key", app_settings.value 
+FROM app_settings 
+WHERE app_settings."key" = ?
+2026-10-02 23:23:53,430 INFO sqlalchemy.engine.Engine [cached since 0.08577s ago] ('password_policy',)
+2026-10-02 23:23:53,430 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:63258 - "GET /api/v1/settings HTTP/1.1" 200 OK
+2026-10-02 23:23:55,231 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:55,231 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:55,231 INFO sqlalchemy.engine.Engine [cached since 1.923s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:55,236 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:23:55,236 INFO sqlalchemy.engine.Engine [generated in 0.00093s] ('fb840cde-a703-4b84-bcb5-dc7131be09c1', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "projects:read"}', None)
+2026-10-02 23:23:55,236 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:55,236 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:55,236 INFO sqlalchemy.engine.Engine [cached since 1.931s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:55,236 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:55,243 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:55,243 INFO sqlalchemy.engine.Engine [cached since 1.933s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:55,243 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:23:55,243 INFO sqlalchemy.engine.Engine [cached since 0.008802s ago] ('e19a4b9e-f894-45c4-a30e-b2b5d6c4a839', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "projects:read"}', None)
+2026-10-02 23:23:55,243 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:23:55,243 INFO sqlalchemy.engine.Engine [cached since 0.01059s ago] ('e45b933a-b21f-41c3-9abf-5e509e97ddfa', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "projects:read"}', None)
+2026-10-02 23:23:55,250 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:23:55,375 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:55,375 INFO sqlalchemy.engine.Engine SELECT count(document_instances.id) AS count_1 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0
+2026-10-02 23:23:55,375 INFO sqlalchemy.engine.Engine [generated in 0.00077s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:23:55,382 INFO sqlalchemy.engine.Engine SELECT document_instances.status, count(document_instances.id) AS cnt 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 GROUP BY document_instances.status
+2026-10-02 23:23:55,382 INFO sqlalchemy.engine.Engine [generated in 0.00095s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:23:55,382 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:23:55,382 INFO sqlalchemy.engine.Engine SELECT avg(document_instances.confidence_score) AS avg_1 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0
+2026-10-02 23:23:55,382 INFO sqlalchemy.engine.Engine [generated in 0.00080s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:23:55,389 INFO sqlalchemy.engine.Engine SELECT document_types.name, count(document_instances.id) AS cnt 
+FROM document_types JOIN document_instances ON document_instances.document_type_id = document_types.id 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 GROUP BY document_types.id
+2026-10-02 23:23:55,389 INFO sqlalchemy.engine.Engine [generated in 0.00082s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:23:55,396 INFO sqlalchemy.engine.Engine SELECT date(document_instances.created_at) AS date, document_instances.status, count(document_instances.id) AS cnt 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 AND document_instances.created_at >= ? GROUP BY date(document_instances.created_at), document_instances.status ORDER BY date(document_instances.created_at)
+2026-10-02 23:23:55,396 INFO sqlalchemy.engine.Engine [generated in 0.00109s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '2026-09-26 17:53:55.389568')
+2026-10-02 23:23:55,396 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:64028 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/stats HTTP/1.1" 200 OK
+2026-10-02 23:23:55,403 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:55,405 INFO sqlalchemy.engine.Engine SELECT audit_events.id, audit_events.action, audit_events.actor, audit_events.comment, audit_events.timestamp, document_instances.document_type_id, document_types.name AS document_type_name 
+FROM audit_events JOIN document_instances ON audit_events.document_id = document_instances.id JOIN document_types ON document_instances.document_type_id = document_types.id 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 ORDER BY audit_events.timestamp DESC
+ LIMIT ? OFFSET ?
+2026-10-02 23:23:55,405 INFO sqlalchemy.engine.Engine [generated in 0.00094s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b', 10, 0)
+2026-10-02 23:23:55,410 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:23:55,410 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:23:55,410 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:55,416 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:55,417 INFO sqlalchemy.engine.Engine [cached since 2.106s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+INFO:     127.0.0.1:64029 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/recent-activity HTTP/1.1" 200 OK
+2026-10-02 23:23:55,419 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:23:55,419 INFO sqlalchemy.engine.Engine [cached since 0.1827s ago] ('e4653c24-7784-4b17-ac2a-0d37e6654ea2', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "projects:read"}', None)
+2026-10-02 23:23:55,423 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:23:55,438 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:55,440 INFO sqlalchemy.engine.Engine SELECT projects.id, projects.name, projects.description, projects.created_by, projects.visibility, projects.is_deleted, projects.created_at, projects.updated_at 
+FROM projects 
+WHERE projects.id = ? AND projects.is_deleted = 0
+2026-10-02 23:23:55,441 INFO sqlalchemy.engine.Engine [generated in 0.00105s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:23:55,443 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:64027 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b HTTP/1.1" 200 OK
+2026-10-02 23:23:55,461 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:55,462 INFO sqlalchemy.engine.Engine SELECT count(document_instances.id) AS count_1 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0
+2026-10-02 23:23:55,463 INFO sqlalchemy.engine.Engine [cached since 0.08455s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:23:55,464 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:55,465 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:55,466 INFO sqlalchemy.engine.Engine [cached since 2.155s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:55,467 INFO sqlalchemy.engine.Engine SELECT document_instances.status, count(document_instances.id) AS cnt 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 GROUP BY document_instances.status
+2026-10-02 23:23:55,468 INFO sqlalchemy.engine.Engine [cached since 0.08625s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:23:55,470 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:23:55,471 INFO sqlalchemy.engine.Engine [cached since 0.2332s ago] ('c460df24-0769-4e19-a9af-79d6430ed2bc', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "projects:read"}', None)
+2026-10-02 23:23:55,473 INFO sqlalchemy.engine.Engine SELECT avg(document_instances.confidence_score) AS avg_1 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0
+2026-10-02 23:23:55,474 INFO sqlalchemy.engine.Engine [cached since 0.08691s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:23:55,476 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:23:55,477 INFO sqlalchemy.engine.Engine SELECT document_types.name, count(document_instances.id) AS cnt 
+FROM document_types JOIN document_instances ON document_instances.document_type_id = document_types.id 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 GROUP BY document_types.id
+2026-10-02 23:23:55,478 INFO sqlalchemy.engine.Engine [cached since 0.08653s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:23:55,482 INFO sqlalchemy.engine.Engine SELECT date(document_instances.created_at) AS date, document_instances.status, count(document_instances.id) AS cnt 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 AND document_instances.created_at >= ? GROUP BY date(document_instances.created_at), document_instances.status ORDER BY date(document_instances.created_at)
+2026-10-02 23:23:55,484 INFO sqlalchemy.engine.Engine [cached since 0.08716s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '2026-09-26 17:53:55.481832')
+2026-10-02 23:23:55,494 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:61933 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/stats HTTP/1.1" 200 OK
+2026-10-02 23:23:55,508 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:55,509 INFO sqlalchemy.engine.Engine SELECT audit_events.id, audit_events.action, audit_events.actor, audit_events.comment, audit_events.timestamp, document_instances.document_type_id, document_types.name AS document_type_name 
+FROM audit_events JOIN document_instances ON audit_events.document_id = document_instances.id JOIN document_types ON document_instances.document_type_id = document_types.id 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 ORDER BY audit_events.timestamp DESC
+ LIMIT ? OFFSET ?
+2026-10-02 23:23:55,510 INFO sqlalchemy.engine.Engine [cached since 0.1032s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b', 10, 0)
+2026-10-02 23:23:55,512 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:61797 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/recent-activity HTTP/1.1" 200 OK
+2026-10-02 23:23:59,718 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:59,747 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:59,754 INFO sqlalchemy.engine.Engine [cached since 6.446s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:59,768 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:59,789 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:59,838 INFO sqlalchemy.engine.Engine [cached since 6.532s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:59,852 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:23:59,865 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:23:59,873 INFO sqlalchemy.engine.Engine [cached since 6.565s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:23:59,900 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:23:59,914 INFO sqlalchemy.engine.Engine [cached since 4.681s ago] ('c4284902-99e4-45bd-be9b-986b1ba5c0c4', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "document_types:read"}', None)
+2026-10-02 23:23:59,928 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:23:59,935 INFO sqlalchemy.engine.Engine [cached since 4.703s ago] ('ba9781d5-8995-45b2-b066-4a3440cef95c', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "documents:read"}', None)
+2026-10-02 23:23:59,949 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:23:59,963 INFO sqlalchemy.engine.Engine [cached since 4.725s ago] ('211f5732-ef79-4f34-b2be-6037ca4d4844', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "document_types:read"}', None)
+2026-10-02 23:23:59,970 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:00,067 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:00,088 INFO sqlalchemy.engine.Engine SELECT document_types.id, document_types.project_id, document_types.name, document_types.schema_definition, document_types.validation_rules, document_types.is_deleted, document_types.created_at, document_types.updated_at 
+FROM document_types 
+WHERE document_types.project_id = ? AND document_types.is_deleted = 0 ORDER BY document_types.created_at DESC
+2026-10-02 23:24:00,109 INFO sqlalchemy.engine.Engine [generated in 0.02127s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:24:00,116 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:00,129 INFO sqlalchemy.engine.Engine SELECT document_instances.document_type_id, count(document_instances.id) AS cnt 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 AND document_instances.document_type_id IN (?) GROUP BY document_instances.document_type_id
+2026-10-02 23:24:00,150 INFO sqlalchemy.engine.Engine [generated in 0.01982s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b', 'a66f8f3e-3f3a-477f-be8f-16edf8f1f555')
+2026-10-02 23:24:00,164 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:00,187 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:51512 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/document-types HTTP/1.1" 200 OK
+2026-10-02 23:24:00,220 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:00,234 INFO sqlalchemy.engine.Engine SELECT extraction_profiles.id, extraction_profiles.project_id, extraction_profiles.name, extraction_profiles.mode, extraction_profiles.candidate_types, extraction_profiles.target_document_type_id, extraction_profiles.prompts, extraction_profiles.provider_chain, extraction_profiles.ocr_provider_id, extraction_profiles.allow_cloud, extraction_profiles.version, extraction_profiles.created_at, extraction_profiles.updated_at 
+FROM extraction_profiles 
+WHERE extraction_profiles.project_id = ? ORDER BY extraction_profiles.name
+2026-10-02 23:24:00,241 INFO sqlalchemy.engine.Engine [generated in 0.00982s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:24:00,255 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:00,311 INFO sqlalchemy.engine.Engine SELECT document_instances.id, document_instances.project_id, document_instances.document_type_id, document_instances.status, document_instances.extracted_data, document_instances.confidence_score, document_instances.confidence_scores, document_instances.submission_id, document_instances.source, document_instances.extraction_meta, document_instances.is_deleted, document_instances.created_at, document_instances.updated_at 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 ORDER BY document_instances.created_at DESC
+2026-10-02 23:24:00,325 INFO sqlalchemy.engine.Engine [generated in 0.01743s] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:24:00,338 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:24:00,345 INFO sqlalchemy.engine.Engine SELECT document_types.id, document_types.project_id, document_types.name, document_types.schema_definition, document_types.validation_rules, document_types.is_deleted, document_types.created_at, document_types.updated_at 
+FROM document_types 
+WHERE document_types.id = ?
+2026-10-02 23:24:00,373 INFO sqlalchemy.engine.Engine [generated in 0.02312s] ('a66f8f3e-3f3a-477f-be8f-16edf8f1f555',)
+INFO:     127.0.0.1:51510 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/profiles HTTP/1.1" 200 OK
+2026-10-02 23:24:00,394 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:51516 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/documents HTTP/1.1" 200 OK
+2026-10-02 23:24:01,923 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:02,048 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:02,062 INFO sqlalchemy.engine.Engine [cached since 8.752s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:02,076 INFO sqlalchemy.engine.Engine SELECT doc_type_subscriptions.id, doc_type_subscriptions.user_id, doc_type_subscriptions.project_id, doc_type_subscriptions.document_type_id, doc_type_subscriptions.notify_on, doc_type_subscriptions.created_at 
+FROM doc_type_subscriptions 
+WHERE doc_type_subscriptions.user_id = ? ORDER BY doc_type_subscriptions.created_at DESC
+2026-10-02 23:24:02,083 INFO sqlalchemy.engine.Engine [generated in 0.00940s] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:02,097 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:51633 - "GET /api/v1/subscriptions HTTP/1.1" 200 OK
+2026-10-02 23:24:02,125 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:02,138 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:02,146 INFO sqlalchemy.engine.Engine [cached since 8.841s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:02,164 INFO sqlalchemy.engine.Engine SELECT doc_type_subscriptions.id, doc_type_subscriptions.user_id, doc_type_subscriptions.project_id, doc_type_subscriptions.document_type_id, doc_type_subscriptions.notify_on, doc_type_subscriptions.created_at 
+FROM doc_type_subscriptions 
+WHERE doc_type_subscriptions.user_id = ? ORDER BY doc_type_subscriptions.created_at DESC
+2026-10-02 23:24:02,174 INFO sqlalchemy.engine.Engine [cached since 0.09843s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:02,185 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:56454 - "GET /api/v1/subscriptions HTTP/1.1" 200 OK
+2026-10-02 23:24:07,556 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:07,637 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:07,637 INFO sqlalchemy.engine.Engine [cached since 14.33s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:07,637 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:07,637 INFO sqlalchemy.engine.Engine [cached since 12.4s ago] ('ba057c1c-1495-4bc3-8b1d-0a5f0c949bdc', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "documents:read"}', None)
+2026-10-02 23:24:07,637 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:09,236 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,271 INFO sqlalchemy.engine.Engine SELECT document_instances.id, document_instances.project_id, document_instances.document_type_id, document_instances.status, document_instances.extracted_data, document_instances.confidence_score, document_instances.confidence_scores, document_instances.submission_id, document_instances.source, document_instances.extraction_meta, document_instances.is_deleted, document_instances.created_at, document_instances.updated_at, audit_events_1.id AS id_1, audit_events_1.document_id, audit_events_1.action, audit_events_1.actor, audit_events_1.field_name, audit_events_1.old_value, audit_events_1.new_value, audit_events_1.comment, audit_events_1.timestamp 
+FROM document_instances LEFT OUTER JOIN audit_events AS audit_events_1 ON document_instances.id = audit_events_1.document_id 
+WHERE document_instances.id = ? AND document_instances.is_deleted = 0
+2026-10-02 23:24:09,278 INFO sqlalchemy.engine.Engine [generated in 0.01115s] ('f91afa1e-e19e-495e-bdd2-fe2e4e0adda1',)
+2026-10-02 23:24:09,285 INFO sqlalchemy.engine.Engine SELECT audit_events.id, audit_events.document_id, audit_events.action, audit_events.actor, audit_events.field_name, audit_events.old_value, audit_events.new_value, audit_events.comment, audit_events.timestamp 
+FROM audit_events 
+WHERE audit_events.document_id = ? ORDER BY audit_events.timestamp ASC
+2026-10-02 23:24:09,285 INFO sqlalchemy.engine.Engine [generated in 0.00242s] ('f91afa1e-e19e-495e-bdd2-fe2e4e0adda1',)
+2026-10-02 23:24:09,297 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:49690 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/documents/f91afa1e-e19e-495e-bdd2-fe2e4e0adda1?include_history=true HTTP/1.1" 200 OK
+2026-10-02 23:24:09,352 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,412 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:09,428 INFO sqlalchemy.engine.Engine [cached since 16.12s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:09,431 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,431 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:09,431 INFO sqlalchemy.engine.Engine [cached since 16.12s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:09,431 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,431 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:09,431 INFO sqlalchemy.engine.Engine [cached since 16.13s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:09,431 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,431 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:09,431 INFO sqlalchemy.engine.Engine [cached since 16.13s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:09,445 INFO sqlalchemy.engine.Engine SELECT submissions.id AS submissions_id, submissions.project_id AS submissions_project_id, submissions.source AS submissions_source, submissions.trigger_id AS submissions_trigger_id, submissions.profile_id AS submissions_profile_id, submissions.email_meta AS submissions_email_meta, submissions.created_by AS submissions_created_by, submissions.api_key_id AS submissions_api_key_id, submissions.idempotency_key AS submissions_idempotency_key, submissions.note AS submissions_note, submissions.created_at AS submissions_created_at 
+FROM submissions 
+WHERE submissions.id = ?
+2026-10-02 23:24:09,445 INFO sqlalchemy.engine.Engine [generated in 0.00142s] ('5e8cf608-9ca0-4238-8863-89239dc1ec0e',)
+2026-10-02 23:24:09,445 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:09,445 INFO sqlalchemy.engine.Engine [cached since 14.22s ago] ('5ac4b6bc-76e0-42e0-b931-c2ba14f22aed', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "documents:comment"}', None)
+2026-10-02 23:24:09,445 INFO sqlalchemy.engine.Engine SELECT document_instances.id AS document_instances_id, document_instances.project_id AS document_instances_project_id, document_instances.document_type_id AS document_instances_document_type_id, document_instances.status AS document_instances_status, document_instances.extracted_data AS document_instances_extracted_data, document_instances.confidence_score AS document_instances_confidence_score, document_instances.confidence_scores AS document_instances_confidence_scores, document_instances.submission_id AS document_instances_submission_id, document_instances.source AS document_instances_source, document_instances.extraction_meta AS document_instances_extraction_meta, document_instances.is_deleted AS document_instances_is_deleted, document_instances.created_at AS document_instances_created_at, document_instances.updated_at AS document_instances_updated_at 
+FROM document_instances 
+WHERE document_instances.id = ?
+2026-10-02 23:24:09,460 INFO sqlalchemy.engine.Engine [generated in 0.00105s] ('f91afa1e-e19e-495e-bdd2-fe2e4e0adda1',)
+2026-10-02 23:24:09,460 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:09,460 INFO sqlalchemy.engine.Engine [cached since 14.23s ago] ('91e94fd9-95c3-478d-8580-22ce09d20354', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "document_types:read"}', None)
+2026-10-02 23:24:09,460 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:09,460 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:09,514 INFO sqlalchemy.engine.Engine [cached since 14.28s ago] ('4217fc0a-1fee-4510-bb1f-7fd8ff7cc2ba', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "documents:read"}', None)
+2026-10-02 23:24:09,572 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:09,572 INFO sqlalchemy.engine.Engine [cached since 14.34s ago] ('eaf401fe-6dad-4bb0-aa32-0851420a3c63', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "documents:read"}', None)
+2026-10-02 23:24:09,584 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:09,591 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:09,604 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,611 INFO sqlalchemy.engine.Engine SELECT document_comments.id, document_comments.document_id, document_comments.user_id, document_comments.parent_id, document_comments.content, document_comments.created_at, document_comments.updated_at 
+FROM document_comments 
+WHERE document_comments.document_id = ? ORDER BY document_comments.created_at ASC
+2026-10-02 23:24:09,613 INFO sqlalchemy.engine.Engine [generated in 0.00101s] ('f91afa1e-e19e-495e-bdd2-fe2e4e0adda1',)
+2026-10-02 23:24:09,615 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:09,617 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id IN (SELECT 1 FROM (SELECT 1) WHERE 1!=1)
+2026-10-02 23:24:09,617 INFO sqlalchemy.engine.Engine [generated in 0.00111s] ()
+2026-10-02 23:24:09,617 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,617 INFO sqlalchemy.engine.Engine SELECT submission_files.id, submission_files.submission_id, submission_files.filename, submission_files.mime, submission_files.size, submission_files.sha256, submission_files.storage_path, submission_files.text_path, submission_files.text_source, submission_files.status, submission_files.skip_reason, submission_files.detected_type, submission_files.document_id, submission_files.created_at 
+FROM submission_files 
+WHERE submission_files.submission_id = ? ORDER BY submission_files.created_at ASC
+2026-10-02 23:24:09,617 INFO sqlalchemy.engine.Engine [generated in 0.00101s] ('5e8cf608-9ca0-4238-8863-89239dc1ec0e',)
+2026-10-02 23:24:09,627 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:24:09,627 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,627 INFO sqlalchemy.engine.Engine SELECT document_attachments.id, document_attachments.document_id, document_attachments.file_name, document_attachments.file_path, document_attachments.mime_type, document_attachments.file_size, document_attachments.created_at 
+FROM document_attachments 
+WHERE document_attachments.document_id = ? ORDER BY document_attachments.created_at DESC
+2026-10-02 23:24:09,627 INFO sqlalchemy.engine.Engine [generated in 0.00075s] ('f91afa1e-e19e-495e-bdd2-fe2e4e0adda1',)
+2026-10-02 23:24:09,632 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,632 INFO sqlalchemy.engine.Engine SELECT document_types.id, document_types.project_id, document_types.name, document_types.schema_definition, document_types.validation_rules, document_types.is_deleted, document_types.created_at, document_types.updated_at 
+FROM document_types 
+WHERE document_types.id = ? AND document_types.is_deleted = 0
+2026-10-02 23:24:09,632 INFO sqlalchemy.engine.Engine [generated in 0.00099s] ('a66f8f3e-3f3a-477f-be8f-16edf8f1f555',)
+INFO:     127.0.0.1:56174 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/documents/f91afa1e-e19e-495e-bdd2-fe2e4e0adda1/comments HTTP/1.1" 200 OK
+2026-10-02 23:24:09,632 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:24:09,632 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:24:09,632 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:56172 - "GET /api/v1/submissions/5e8cf608-9ca0-4238-8863-89239dc1ec0e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56175 - "GET /api/v1/attachments/f91afa1e-e19e-495e-bdd2-fe2e4e0adda1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56176 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/document-types/a66f8f3e-3f3a-477f-be8f-16edf8f1f555 HTTP/1.1" 200 OK
+2026-10-02 23:24:09,768 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,768 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:09,768 INFO sqlalchemy.engine.Engine [cached since 16.46s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:09,768 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,768 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:09,777 INFO sqlalchemy.engine.Engine [cached since 16.47s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:09,777 INFO sqlalchemy.engine.Engine SELECT document_instances.id AS document_instances_id, document_instances.project_id AS document_instances_project_id, document_instances.document_type_id AS document_instances_document_type_id, document_instances.status AS document_instances_status, document_instances.extracted_data AS document_instances_extracted_data, document_instances.confidence_score AS document_instances_confidence_score, document_instances.confidence_scores AS document_instances_confidence_scores, document_instances.submission_id AS document_instances_submission_id, document_instances.source AS document_instances_source, document_instances.extraction_meta AS document_instances_extraction_meta, document_instances.is_deleted AS document_instances_is_deleted, document_instances.created_at AS document_instances_created_at, document_instances.updated_at AS document_instances_updated_at 
+FROM document_instances 
+WHERE document_instances.id = ?
+2026-10-02 23:24:09,781 INFO sqlalchemy.engine.Engine [cached since 0.3216s ago] ('f91afa1e-e19e-495e-bdd2-fe2e4e0adda1',)
+2026-10-02 23:24:09,784 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:09,785 INFO sqlalchemy.engine.Engine [cached since 14.55s ago] ('69124de4-a49c-45cf-915d-518baf3d3d2e', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "documents:comment"}', None)
+2026-10-02 23:24:09,788 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:09,788 INFO sqlalchemy.engine.Engine [cached since 14.55s ago] ('a0e316fb-10dc-4912-a855-8b7a82157e3b', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "documents:read"}', None)
+2026-10-02 23:24:09,795 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:09,885 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:09,887 INFO sqlalchemy.engine.Engine SELECT document_comments.id, document_comments.document_id, document_comments.user_id, document_comments.parent_id, document_comments.content, document_comments.created_at, document_comments.updated_at 
+FROM document_comments 
+WHERE document_comments.document_id = ? ORDER BY document_comments.created_at ASC
+2026-10-02 23:24:09,888 INFO sqlalchemy.engine.Engine [cached since 0.2755s ago] ('f91afa1e-e19e-495e-bdd2-fe2e4e0adda1',)
+2026-10-02 23:24:09,888 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id IN (SELECT 1 FROM (SELECT 1) WHERE 1!=1)
+2026-10-02 23:24:09,888 INFO sqlalchemy.engine.Engine [cached since 0.2744s ago] ()
+2026-10-02 23:24:09,888 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:50437 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/documents/f91afa1e-e19e-495e-bdd2-fe2e4e0adda1/comments HTTP/1.1" 200 OK
+2026-10-02 23:24:09,902 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:10,002 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:10,002 INFO sqlalchemy.engine.Engine SELECT document_attachments.id, document_attachments.document_id, document_attachments.file_name, document_attachments.file_path, document_attachments.mime_type, document_attachments.file_size, document_attachments.created_at 
+FROM document_attachments 
+WHERE document_attachments.document_id = ? ORDER BY document_attachments.created_at DESC
+2026-10-02 23:24:10,002 INFO sqlalchemy.engine.Engine [cached since 0.3812s ago] ('f91afa1e-e19e-495e-bdd2-fe2e4e0adda1',)
+2026-10-02 23:24:10,013 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:58704 - "GET /api/v1/attachments/f91afa1e-e19e-495e-bdd2-fe2e4e0adda1 HTTP/1.1" 200 OK
+2026-10-02 23:24:13,851 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:13,880 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:13,945 INFO sqlalchemy.engine.Engine [cached since 20.64s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:13,977 INFO sqlalchemy.engine.Engine SELECT submissions.id AS submissions_id, submissions.project_id AS submissions_project_id, submissions.source AS submissions_source, submissions.trigger_id AS submissions_trigger_id, submissions.profile_id AS submissions_profile_id, submissions.email_meta AS submissions_email_meta, submissions.created_by AS submissions_created_by, submissions.api_key_id AS submissions_api_key_id, submissions.idempotency_key AS submissions_idempotency_key, submissions.note AS submissions_note, submissions.created_at AS submissions_created_at 
+FROM submissions 
+WHERE submissions.id = ?
+2026-10-02 23:24:14,072 INFO sqlalchemy.engine.Engine [cached since 4.63s ago] ('5e8cf608-9ca0-4238-8863-89239dc1ec0e',)
+2026-10-02 23:24:14,103 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:14,199 INFO sqlalchemy.engine.Engine [cached since 18.96s ago] ('dd7488de-10a0-4736-96ea-5da4915a35e3', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "documents:read"}', None)
+2026-10-02 23:24:14,215 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:14,558 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:14,558 INFO sqlalchemy.engine.Engine SELECT submission_files.id AS submission_files_id, submission_files.submission_id AS submission_files_submission_id, submission_files.filename AS submission_files_filename, submission_files.mime AS submission_files_mime, submission_files.size AS submission_files_size, submission_files.sha256 AS submission_files_sha256, submission_files.storage_path AS submission_files_storage_path, submission_files.text_path AS submission_files_text_path, submission_files.text_source AS submission_files_text_source, submission_files.status AS submission_files_status, submission_files.skip_reason AS submission_files_skip_reason, submission_files.detected_type AS submission_files_detected_type, submission_files.document_id AS submission_files_document_id, submission_files.created_at AS submission_files_created_at 
+FROM submission_files 
+WHERE submission_files.id = ?
+2026-10-02 23:24:14,558 INFO sqlalchemy.engine.Engine [generated in 0.00079s] ('3e3e889b-3c2d-4fba-812f-e6e58f4748f4',)
+2026-10-02 23:24:14,574 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:60650 - "GET /api/v1/submissions/5e8cf608-9ca0-4238-8863-89239dc1ec0e/files/3e3e889b-3c2d-4fba-812f-e6e58f4748f4/content HTTP/1.1" 200 OK
+2026-10-02 23:24:23,277 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:23,279 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:23,279 INFO sqlalchemy.engine.Engine [cached since 29.97s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:23,282 INFO sqlalchemy.engine.Engine SELECT notifications.id, notifications.user_id, notifications.document_id, notifications.type, notifications.title, notifications.message, notifications.is_read, notifications.created_at 
+FROM notifications 
+WHERE notifications.user_id = ? ORDER BY notifications.created_at DESC
+ LIMIT ? OFFSET ?
+2026-10-02 23:24:23,282 INFO sqlalchemy.engine.Engine [cached since 29.96s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521', 10, 0)
+2026-10-02 23:24:23,282 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:53542 - "GET /api/v1/notifications?limit=10 HTTP/1.1" 200 OK
+2026-10-02 23:24:23,289 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:23,289 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:23,289 INFO sqlalchemy.engine.Engine [cached since 29.98s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:23,289 INFO sqlalchemy.engine.Engine SELECT project_memberships.id, project_memberships.project_id, project_memberships.user_id, project_memberships.access_level, project_memberships.status, project_memberships.invited_by, project_memberships.created_at, project_memberships.updated_at, projects.name 
+FROM project_memberships JOIN projects ON project_memberships.project_id = projects.id 
+WHERE project_memberships.user_id = ? AND project_memberships.status = ? ORDER BY project_memberships.created_at DESC
+2026-10-02 23:24:23,289 INFO sqlalchemy.engine.Engine [cached since 29.96s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521', 'pending')
+2026-10-02 23:24:23,289 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:53541 - "GET /api/v1/invitations HTTP/1.1" 200 OK
+2026-10-02 23:24:31,369 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:31,376 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:31,376 INFO sqlalchemy.engine.Engine [cached since 38.07s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:31,376 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:31,376 INFO sqlalchemy.engine.Engine [cached since 36.14s ago] ('a96f95f4-de96-431d-b782-5bf0e9a47fee', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "document_types:read"}', None)
+2026-10-02 23:24:31,376 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:31,383 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:31,383 INFO sqlalchemy.engine.Engine [cached since 38.07s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:31,383 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:31,383 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:31,383 INFO sqlalchemy.engine.Engine [cached since 38.08s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:31,390 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:31,390 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:31,390 INFO sqlalchemy.engine.Engine [cached since 38.08s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:31,390 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:31,390 INFO sqlalchemy.engine.Engine [cached since 36.16s ago] ('4b5d00a5-f599-4271-8bc7-1eeb74bc4e0a', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "document_types:read"}', None)
+2026-10-02 23:24:31,390 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:31,397 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:31,473 INFO sqlalchemy.engine.Engine [cached since 36.24s ago] ('76203066-c646-4037-ad5a-ad887fc8bba0', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "documents:read"}', None)
+2026-10-02 23:24:31,480 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, actor_id, action, target_type, target_id, details, comment) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING timestamp
+2026-10-02 23:24:31,480 INFO sqlalchemy.engine.Engine [cached since 36.24s ago] ('a6b5de6c-bb45-4aca-be06-26f40332a13c', '734a2225-c8d0-4c5f-abf1-8db03e26d521', 'admin_bypass', 'project', '1871cdfb-d4cf-451b-ac8a-7274b5dc022b', '{"action": "projects:read"}', None)
+2026-10-02 23:24:31,480 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:31,488 INFO sqlalchemy.engine.Engine COMMIT
+2026-10-02 23:24:31,494 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:31,494 INFO sqlalchemy.engine.Engine SELECT extraction_profiles.id, extraction_profiles.project_id, extraction_profiles.name, extraction_profiles.mode, extraction_profiles.candidate_types, extraction_profiles.target_document_type_id, extraction_profiles.prompts, extraction_profiles.provider_chain, extraction_profiles.ocr_provider_id, extraction_profiles.allow_cloud, extraction_profiles.version, extraction_profiles.created_at, extraction_profiles.updated_at 
+FROM extraction_profiles 
+WHERE extraction_profiles.project_id = ? ORDER BY extraction_profiles.name
+2026-10-02 23:24:31,494 INFO sqlalchemy.engine.Engine [cached since 31.27s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:24:31,501 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:24:31,501 INFO sqlalchemy.engine.Engine COMMIT
+INFO:     127.0.0.1:61258 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/profiles HTTP/1.1" 200 OK
+2026-10-02 23:24:31,501 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:31,508 INFO sqlalchemy.engine.Engine SELECT document_instances.id, document_instances.project_id, document_instances.document_type_id, document_instances.status, document_instances.extracted_data, document_instances.confidence_score, document_instances.confidence_scores, document_instances.submission_id, document_instances.source, document_instances.extraction_meta, document_instances.is_deleted, document_instances.created_at, document_instances.updated_at 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 ORDER BY document_instances.created_at DESC
+2026-10-02 23:24:31,508 INFO sqlalchemy.engine.Engine [cached since 31.2s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:24:31,508 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:31,508 INFO sqlalchemy.engine.Engine SELECT projects.id, projects.name, projects.description, projects.created_by, projects.visibility, projects.is_deleted, projects.created_at, projects.updated_at 
+FROM projects 
+WHERE projects.id = ? AND projects.is_deleted = 0
+2026-10-02 23:24:31,508 INFO sqlalchemy.engine.Engine [cached since 36.07s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:24:31,515 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-10-02 23:24:31,515 INFO sqlalchemy.engine.Engine SELECT document_types.id, document_types.project_id, document_types.name, document_types.schema_definition, document_types.validation_rules, document_types.is_deleted, document_types.created_at, document_types.updated_at 
+FROM document_types 
+WHERE document_types.id = ?
+2026-10-02 23:24:31,515 INFO sqlalchemy.engine.Engine [cached since 31.17s ago] ('a66f8f3e-3f3a-477f-be8f-16edf8f1f555',)
+INFO:     127.0.0.1:55428 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b HTTP/1.1" 200 OK
+2026-10-02 23:24:31,515 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:55426 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/documents HTTP/1.1" 200 OK
+2026-10-02 23:24:31,529 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:31,529 INFO sqlalchemy.engine.Engine SELECT document_types.id, document_types.project_id, document_types.name, document_types.schema_definition, document_types.validation_rules, document_types.is_deleted, document_types.created_at, document_types.updated_at 
+FROM document_types 
+WHERE document_types.project_id = ? AND document_types.is_deleted = 0 ORDER BY document_types.created_at DESC
+2026-10-02 23:24:31,529 INFO sqlalchemy.engine.Engine [cached since 31.44s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b',)
+2026-10-02 23:24:31,529 INFO sqlalchemy.engine.Engine SELECT document_instances.document_type_id, count(document_instances.id) AS cnt 
+FROM document_instances 
+WHERE document_instances.project_id = ? AND document_instances.is_deleted = 0 AND document_instances.document_type_id IN (?) GROUP BY document_instances.document_type_id
+2026-10-02 23:24:31,536 INFO sqlalchemy.engine.Engine [cached since 31.4s ago] ('1871cdfb-d4cf-451b-ac8a-7274b5dc022b', 'a66f8f3e-3f3a-477f-be8f-16edf8f1f555')
+2026-10-02 23:24:31,536 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:55424 - "GET /api/v1/projects/1871cdfb-d4cf-451b-ac8a-7274b5dc022b/document-types HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52431 - "GET /api/v1/llm-providers/ollama/models?base_url=http%3A%2F%2Flocalhost%3A11434 HTTP/1.1" 405 Method Not Allowed
+2026-10-02 23:24:33,121 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:33,122 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:33,122 INFO sqlalchemy.engine.Engine [cached since 39.81s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:33,122 INFO sqlalchemy.engine.Engine SELECT doc_type_subscriptions.id, doc_type_subscriptions.user_id, doc_type_subscriptions.project_id, doc_type_subscriptions.document_type_id, doc_type_subscriptions.notify_on, doc_type_subscriptions.created_at 
+FROM doc_type_subscriptions 
+WHERE doc_type_subscriptions.user_id = ? ORDER BY doc_type_subscriptions.created_at DESC
+2026-10-02 23:24:33,122 INFO sqlalchemy.engine.Engine [cached since 31.05s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:33,127 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:55593 - "GET /api/v1/subscriptions HTTP/1.1" 200 OK
+2026-10-02 23:24:33,136 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-10-02 23:24:33,136 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.name, users.role, users.is_active, users.preferences, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = ?
+2026-10-02 23:24:33,139 INFO sqlalchemy.engine.Engine [cached since 39.83s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:33,141 INFO sqlalchemy.engine.Engine SELECT doc_type_subscriptions.id, doc_type_subscriptions.user_id, doc_type_subscriptions.project_id, doc_type_subscriptions.document_type_id, doc_type_subscriptions.notify_on, doc_type_subscriptions.created_at 
+FROM doc_type_subscriptions 
+WHERE doc_type_subscriptions.user_id = ? ORDER BY doc_type_subscriptions.created_at DESC
+2026-10-02 23:24:33,141 INFO sqlalchemy.engine.Engine [cached since 31.07s ago] ('734a2225-c8d0-4c5f-abf1-8db03e26d521',)
+2026-10-02 23:24:33,143 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:54345 - "GET /api/v1/subscriptions HTTP/1.1" 200 OK
