@@ -37,14 +37,14 @@ export function ProjectDetail() {
         description={project?.description ?? ""}
       />
 
-      <div className="mb-6 flex gap-1 rounded-xl bg-surface-100 p-1 dark:bg-surface-800">
+      <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-surface-100 p-1 dark:bg-surface-800">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+              className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
                 activeTab === tab.id
                   ? "bg-white text-surface-900 shadow-sm dark:bg-surface-700 dark:text-surface-100"
                   : "text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200"

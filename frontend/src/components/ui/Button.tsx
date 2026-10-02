@@ -3,7 +3,7 @@ import { cn } from "../../lib/utils";
 
 const variants = {
   primary:
-    "bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40",
+    "bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 shadow-lg shadow-brand-600/25 hover:shadow-brand-600/40 font-semibold",
   secondary:
     "bg-surface-100 text-surface-900 hover:bg-surface-200 active:bg-surface-300 dark:bg-surface-800 dark:text-surface-100 dark:hover:bg-surface-700",
   outline:

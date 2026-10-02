@@ -462,9 +462,9 @@ export function DocumentDetail() {
         Back to documents
       </button>
 
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-xl font-bold text-surface-900 dark:text-surface-100">
               {doc.document_type_name ?? "Document"}
             </h1>
@@ -594,8 +594,8 @@ export function DocumentDetail() {
                           {isRequired ? <span className="text-accent-500">*</span> : null}
                         </span>
                       </label>
-                      <div className="overflow-hidden rounded-xl border border-surface-200 dark:border-surface-600">
-                        <table className="w-full text-sm">
+                      <div className="overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-600">
+                        <table className="w-full min-w-[560px] text-sm">
                           <thead>
                             <tr className="bg-surface-50 dark:bg-surface-800">
                               {Object.entries(itemProps).map(([colKey, colVal]) => {

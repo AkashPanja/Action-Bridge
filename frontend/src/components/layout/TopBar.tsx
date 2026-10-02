@@ -1,4 +1,4 @@
-import { Bell, KeyRound, Moon, Sun } from "lucide-react";
+import { Bell, KeyRound, Menu, Moon, Sun } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -17,7 +17,7 @@ interface Notification {
   created_at: string;
 }
 
-export function TopBar() {
+export function TopBar({ onMenuClick = () => {} }: { onMenuClick?: () => void }) {
   const { dark, toggleTheme } = useTheme();
   const location = useLocation();
   const { token, user } = useAuth();
@@ -126,17 +126,26 @@ export function TopBar() {
     }));
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-surface-200/60 bg-white/50 px-6 backdrop-blur-xl dark:border-surface-700/50 dark:bg-surface-900/50">
-      <nav className="flex items-center gap-2 text-sm">
-        <Link to="/" className="text-surface-400 hover:text-surface-600 dark:hover:text-surface-300">Home</Link>
-        {crumbs.map((crumb) => (
-          <span key={crumb.href} className="flex items-center gap-2">
-            <span className="text-surface-300 dark:text-surface-600">/</span>
-            <Link
-              to={crumb.href}
-              className={cn(
-                "capitalize transition-colors",
-                crumb.current
+    <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-surface-200/60 bg-white/50 px-4 backdrop-blur-xl dark:border-surface-700/50 dark:bg-surface-900/50 md:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <button
+          onClick={onMenuClick}
+          className="shrink-0 rounded-xl p-2 text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-700 dark:text-surface-400 dark:hover:bg-surface-700 dark:hover:text-surface-200 md:hidden"
+          title="Open menu"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <nav className="flex min-w-0 items-center gap-2 overflow-hidden text-sm">
+          <Link to="/" className="hidden shrink-0 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 sm:block">Home</Link>
+          {crumbs.map((crumb) => (
+            <span key={crumb.href} className={cn("flex min-w-0 items-center gap-2", !crumb.current && "hidden sm:flex")}>
+              <span className="shrink-0 text-surface-300 dark:text-surface-600">/</span>
+              <Link
+                to={crumb.href}
+                className={cn(
+                  "truncate capitalize transition-colors",
+                  crumb.current
                   ? "font-medium text-surface-900 dark:text-surface-100"
                   : "text-surface-400 hover:text-surface-600 dark:hover:text-surface-300",
               )}
@@ -145,16 +154,17 @@ export function TopBar() {
             </Link>
           </span>
         ))}
-      </nav>
-
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-        {companyLogo ? (
-          <img src={companyLogo} alt={companyName} className="h-6 w-6 rounded object-contain" />
-        ) : null}
-        <span className="text-sm font-semibold text-surface-800 dark:text-surface-200">{companyName}</span>
+        </nav>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="absolute left-1/2 hidden max-w-[32vw] -translate-x-1/2 items-center gap-2 min-[500px]:flex">
+        {companyLogo ? (
+          <img src={companyLogo} alt={companyName} className="h-6 w-6 shrink-0 rounded object-contain" />
+        ) : null}
+        <span className="truncate text-sm font-semibold text-surface-800 dark:text-surface-200">{companyName}</span>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <button
           onClick={() => setShowPasswordModal(true)}
           className="rounded-xl p-2 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-600 dark:hover:bg-surface-700 dark:hover:text-surface-300"
@@ -178,7 +188,7 @@ export function TopBar() {
           </button>
 
           {showNotifs && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-surface-200 bg-white shadow-lg backdrop-blur-xl dark:border-surface-700 dark:bg-surface-900">
+            <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2.5rem)] rounded-xl border border-surface-200 bg-white shadow-lg backdrop-blur-xl dark:border-surface-700 dark:bg-surface-900">
               <div className="flex items-center justify-between border-b border-surface-200 px-4 py-3 dark:border-surface-700">
                 <span className="text-sm font-semibold text-surface-900 dark:text-surface-100">Notifications</span>
                 {unreadCount > 0 && (
@@ -222,7 +232,7 @@ export function TopBar() {
 
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-surface-200 bg-white p-6 shadow-xl dark:border-surface-700 dark:bg-surface-800">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-surface-200 bg-white p-6 shadow-xl dark:border-surface-700 dark:bg-surface-800">
             <h2 className="text-lg font-semibold text-surface-900 dark:text-surface-100">Change Password</h2>
             <form onSubmit={handlePasswordChange} className="mt-4 space-y-4">
               {pwError && <p className="text-sm text-accent-500">{pwError}</p>}

@@ -153,14 +153,14 @@ export function ApiKeys() {
                   <Key className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-surface-900 dark:text-surface-100">{k.label}</span>
-                    <code className="rounded bg-surface-100 px-1.5 py-0.5 text-[10px] font-mono text-surface-500 dark:bg-surface-700">{k.key_prefix}...</code>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-surface-900 dark:text-surface-100">{k.label}</span>
+                    <code className="shrink-0 rounded bg-surface-100 px-1.5 py-0.5 text-[10px] font-mono text-surface-500 dark:bg-surface-700">{k.key_prefix}...</code>
                     {!k.is_active ? (
-                      <span className="rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-medium text-accent-600">revoked</span>
+                      <span className="shrink-0 rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-medium text-accent-600">revoked</span>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 text-xs text-surface-400">Scopes: {Object.values(k.scopes).flat().join(", ")}</p>
+                  <p className="mt-0.5 truncate text-xs text-surface-400">Scopes: {Object.values(k.scopes).flat().join(", ")}</p>
                 </div>
                 {k.is_active ? (
                   <Button variant="ghost" size="sm" onClick={() => handleRevoke(k.id)} title="Revoke">

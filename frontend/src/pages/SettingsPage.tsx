@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { LogoCropper } from "../components/settings/LogoCropper";
 import { useAuth } from "../contexts/AuthContext";
 
 const API_BASE = "/api/v1";
@@ -58,7 +59,7 @@ export function SettingsPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   // Logo state
-  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
 
   useEffect(() => {
@@ -127,24 +128,53 @@ export function SettingsPage() {
     setSaving(false);
   }
 
-  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+
+  function handleLogoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
+    setError("");
+    setSuccess("");
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file (PNG or JPG).");
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setError("Logo must be under 2 MB. Please compress or crop it first.");
+      return;
+    }
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(URL.createObjectURL(file));
+  }
+
+  function closeCropper() {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  }
+
+  async function handleCroppedLogo(blob: Blob, width: number, height: number) {
+    const url = cropSrc;
+    setCropSrc(null);
+    if (url) URL.revokeObjectURL(url);
     setLogoUploading(true);
     setError("");
     setSuccess("");
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", new File([blob], "logo.png", { type: "image/png" }));
       const res = await fetch(`${API_BASE}/settings/logo`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: fd,
       });
-      if (!res.ok) throw new Error("Logo upload failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Logo upload failed" }));
+        throw new Error(err.detail || "Logo upload failed");
+      }
       const data = await res.json();
       setSettings((prev) => ({ ...prev, company: { ...prev.company, logo: data.logo } }));
-      setSuccess("Logo uploaded.");
+      setSuccess(`Logo uploaded (${width} × ${height} px).`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     }
@@ -185,12 +215,12 @@ export function SettingsPage() {
         <p className="mt-1 text-sm text-surface-500">Manage system configuration.</p>
       </div>
 
-      <div className="flex gap-1 rounded-xl bg-surface-100 p-1 dark:bg-surface-800">
+      <div className="flex gap-1 overflow-x-auto rounded-xl bg-surface-100 p-1 dark:bg-surface-800">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+            className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all sm:px-4 ${
               tab === t.key
                 ? "bg-white text-surface-900 shadow-sm dark:bg-surface-700 dark:text-surface-100"
                 : "text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200"
@@ -224,16 +254,29 @@ export function SettingsPage() {
 
             <div>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">Logo</label>
+              <p className="mt-1 text-xs leading-relaxed text-surface-400 dark:text-surface-500">
+                PNG with a transparent background works best. Recommended: square 512 × 512 px
+                or wide 1024 × 256 px. Max file size 2 MB. After choosing a file you can crop
+                it before uploading.
+              </p>
               <div className="mt-2 flex items-center gap-4">
                 {settings.company.logo && (
-                  <img src={settings.company.logo} alt="Logo" className="h-12 w-12 rounded-lg object-contain border border-surface-200 dark:border-surface-600" />
+                  <img src={settings.company.logo} alt="Logo" className="h-12 w-12 shrink-0 rounded-lg object-contain border border-surface-200 dark:border-surface-600" />
                 )}
                 <label className="cursor-pointer rounded-lg border border-surface-300 px-4 py-2 text-sm text-surface-600 hover:bg-surface-50 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700">
                   <Upload className="inline h-4 w-4 mr-1" />
-                  {logoUploading ? "Uploading..." : "Upload Logo"}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                  {logoUploading ? "Uploading..." : settings.company.logo ? "Replace Logo" : "Upload Logo"}
+                  <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleLogoSelect} />
                 </label>
               </div>
+              {cropSrc && (
+                <LogoCropper
+                  imageSrc={cropSrc}
+                  open={true}
+                  onClose={closeCropper}
+                  onConfirm={handleCroppedLogo}
+                />
+              )}
             </div>
 
             <Button onClick={saveSettings} isLoading={saving}>
@@ -247,7 +290,7 @@ export function SettingsPage() {
         <Card>
           <h2 className="mb-4 text-sm font-semibold text-surface-900 dark:text-surface-100">SMTP Configuration</h2>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">Host</label>
                 <input

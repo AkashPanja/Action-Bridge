@@ -168,7 +168,7 @@ export function ProjectList() {
           </motion.div>
 
           {canWrite && selected.size > 0 ? (
-            <div className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2">
+            <div className="fixed bottom-8 left-1/2 z-50 max-w-[calc(100vw-2rem)] -translate-x-1/2">
               <div className="flex items-center gap-3 rounded-2xl border border-surface-300 bg-white px-5 py-3 shadow-xl dark:border-surface-600 dark:bg-surface-800">
                 <span className="text-sm font-medium text-surface-700 dark:text-surface-200">
                   {selected.size} selected

@@ -8,7 +8,7 @@ import { cn } from "../../lib/utils";
 
 const API_BASE = "/api/v1";
 
-export function Sidebar() {
+export function Sidebar({ open = true, onClose = () => {} }: { open?: boolean; onClose?: () => void }) {
   const { projectId } = useParams();
   const { data: projects } = useProjects();
   const { user, logout, token } = useAuth();
@@ -33,9 +33,17 @@ export function Sidebar() {
   }, [token]);
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-surface-200/60 bg-white/50 backdrop-blur-xl dark:border-surface-700/50 dark:bg-surface-900/50">
-      <div className="flex items-center gap-2.5 border-b border-surface-200/60 px-5 py-3 dark:border-surface-700/50">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-500">
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-40 flex h-full w-64 shrink-0 flex-col border-r border-surface-200/60 bg-white backdrop-blur-xl transition-transform duration-300",
+        "dark:border-surface-700/50 dark:bg-surface-900",
+        open ? "translate-x-0" : "-translate-x-full",
+        "md:static md:z-auto md:translate-x-0 md:bg-white/50 md:dark:bg-surface-900/50",
+      )}
+      onClick={onClose}
+    >
+      <div className="flex items-center gap-2.5 border-b border-surface-200/60 px-5 py-3 dark:border-surface-700/50" onClick={onClose}>
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#1b2cc7] to-[#2f7de9] shadow-md shadow-brand-600/25">
           <GitCompareArrows className="h-4 w-4 text-white" />
         </div>
         <span className="text-sm font-bold text-surface-900 dark:text-surface-100">

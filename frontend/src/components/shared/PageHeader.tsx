@@ -14,10 +14,10 @@ export function PageHeader({ title, description, action, className }: PageHeader
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={cn("mb-8 flex items-start justify-between", className)}
+      className={cn("mb-8 flex flex-wrap items-start justify-between gap-4", className)}
     >
-      <div>
-        <h1 className="text-2xl font-bold text-surface-900 dark:text-surface-100">{title}</h1>
+      <div className="min-w-0">
+        <h1 className="break-words text-2xl font-bold text-surface-900 dark:text-surface-100">{title}</h1>
         {description ? (
           <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{description}</p>
         ) : null}

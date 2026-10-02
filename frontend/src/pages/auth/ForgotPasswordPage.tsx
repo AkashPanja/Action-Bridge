@@ -1,10 +1,16 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, GitCompareArrows, MailCheck } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
+import { AuthLayout } from "../../components/auth/AuthLayout";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useAuth } from "../../contexts/AuthContext";
+
+const steps = [
+  { title: "Request a link", description: "Enter your account email" },
+  { title: "Check your inbox", description: "Link expires in 1 hour" },
+  { title: "Set new password", description: "Back to work in minutes" },
+];
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -15,8 +21,8 @@ export function ForgotPasswordPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
+      <div className="flex h-screen items-center justify-center bg-[#23262b]">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-white/30 border-t-white" />
       </div>
     );
   }
@@ -39,64 +45,57 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[rgb(var(--color-bg))] p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="w-full max-w-sm"
-      >
-        <div className="rounded-2xl border border-surface-200/60 bg-white p-8 shadow-xl dark:border-surface-700/50 dark:bg-surface-800">
-          <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500">
-              {sent ? <MailCheck className="h-6 w-6 text-white" /> : <GitCompareArrows className="h-6 w-6 text-white" />}
-            </div>
-            <h1 className="text-xl font-bold text-surface-900 dark:text-surface-100">
-              {sent ? "Check your email" : "Forgot password"}
-            </h1>
-            <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
-              {sent
-                ? `If an account exists for ${email}, a reset link has been sent. It expires in 1 hour.`
-                : "Enter your email and we'll send you a reset link"}
-            </p>
-          </div>
+    <AuthLayout
+      badge="Account recovery"
+      headline="Locked out? No stress."
+      subtext="Follow these simple steps to get back into your workspace."
+      steps={steps}
+      activeStep={sent ? 1 : 0}
+      title={sent ? "Check your email" : "Forgot password"}
+      subtitle={
+        sent
+          ? `If an account exists for ${email}, a reset link has been sent. It expires in 1 hour.`
+          : "Enter your email and we'll send you a reset link"
+      }
+      footer={
+        <p className="text-center text-sm text-surface-500">
+          <Link to="/login" className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
+            Back to sign in
+          </Link>
+        </p>
+      }
+    >
+      {!sent ? (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="Email"
+            type="email"
+            placeholder="admin@actioncenter.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            id="forgot-email"
+          />
 
-          {!sent ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                label="Email"
-                type="email"
-                placeholder="admin@actioncenter.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                id="forgot-email"
-              />
-
-              {error ? (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-xl bg-accent-50 px-4 py-2 text-sm text-accent-600 dark:bg-accent-900/20 dark:text-accent-400"
-                >
-                  {error}
-                </motion.p>
-              ) : null}
-
-              <Button type="submit" isLoading={loading} className="w-full">
-                Send reset link
-              </Button>
-            </form>
+          {error ? (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl bg-accent-50 px-4 py-2.5 text-sm text-accent-600 dark:bg-accent-900/20 dark:text-accent-400"
+            >
+              {error}
+            </motion.p>
           ) : null}
 
-          <p className="mt-4 text-center text-sm text-surface-500">
-            <Link to="/login" className="flex items-center justify-center gap-1 text-accent-500 hover:text-accent-600">
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Back to sign in
-            </Link>
-          </p>
-        </div>
-      </motion.div>
-    </div>
+          <Button type="submit" size="lg" isLoading={loading} className="w-full">
+            Send reset link
+          </Button>
+        </form>
+      ) : (
+        <Link to="/login">
+          <Button size="lg" className="w-full">Back to sign in</Button>
+        </Link>
+      )}
+    </AuthLayout>
   );
 }

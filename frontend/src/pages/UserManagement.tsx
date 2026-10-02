@@ -132,7 +132,7 @@ export function UserManagement() {
             <button onClick={() => setShowCreate(false)} className="text-surface-400 hover:text-surface-600"><X className="h-4 w-4" /></button>
           </div>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">Name</label>
                 <input required value={createName} onChange={(e) => setCreateName(e.target.value)}
@@ -144,7 +144,7 @@ export function UserManagement() {
                   className="mt-1 w-full rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm focus:border-accent-500 focus:outline-none dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">Password</label>
                 <input required type="password" minLength={8} value={createPassword} onChange={(e) => setCreatePassword(e.target.value)}
@@ -175,40 +175,44 @@ export function UserManagement() {
         <div className="space-y-2">
           {users.map((u) => (
             <motion.div key={u.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="flex items-center gap-4 px-5 py-4">
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${u.is_active ? "bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400" : "bg-surface-100 text-surface-400 dark:bg-surface-700"}`}>
-                  <UserCheck className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-semibold text-surface-900 dark:text-surface-100">{u.name}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${u.role === "admin" ? "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300" : u.role === "editor" ? "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300" : "bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-300"}`}>
-                      {u.role}
-                    </span>
-                    {!u.is_active ? (
-                      <span className="rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-medium text-accent-600 dark:bg-accent-900/30 dark:text-accent-400">inactive</span>
-                    ) : null}
+              <Card className="px-5 py-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                  <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${u.is_active ? "bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400" : "bg-surface-100 text-surface-400 dark:bg-surface-700"}`}>
+                      <UserCheck className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-surface-900 dark:text-surface-100">{u.name}</span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${u.role === "admin" ? "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300" : u.role === "editor" ? "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300" : "bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-300"}`}>
+                          {u.role}
+                        </span>
+                        {!u.is_active ? (
+                          <span className="shrink-0 rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-medium text-accent-600 dark:bg-accent-900/30 dark:text-accent-400">inactive</span>
+                        ) : null}
+                      </div>
+                      <p className="mt-0.5 truncate text-xs text-surface-400">{u.email}</p>
+                    </div>
                   </div>
-                  <p className="mt-0.5 text-xs text-surface-400">{u.email}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <select
-                    value={u.role}
-                    onChange={(e) => changeRole(u, e.target.value)}
-                    className="rounded-lg border border-surface-200 bg-white px-2 py-1.5 text-xs focus:border-brand-500 focus:outline-none dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-                  >
-                    <option value="admin">Admin</option>
-                    <option value="editor">Editor</option>
-                    <option value="viewer">Viewer</option>
-                  </select>
-                  <Button variant="ghost" size="sm" onClick={() => toggleActive(u)} title={u.is_active ? "Deactivate" : "Activate"}>
-                    {u.is_active ? <ShieldOff className="h-4 w-4 text-accent-400" /> : <Shield className="h-4 w-4 text-emerald-400" />}
-                  </Button>
-                  {me?.id !== u.id && (
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(u)} title="Delete user">
-                      <Trash2 className="h-4 w-4 text-accent-400 hover:text-accent-600" />
+                  <div className="flex items-center gap-2 border-t border-surface-100 pt-3 dark:border-surface-700 sm:border-0 sm:pt-0">
+                    <select
+                      value={u.role}
+                      onChange={(e) => changeRole(u, e.target.value)}
+                      className="rounded-lg border border-surface-200 bg-white px-2 py-1.5 text-xs focus:border-brand-500 focus:outline-none dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="editor">Editor</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                    <Button variant="ghost" size="sm" onClick={() => toggleActive(u)} title={u.is_active ? "Deactivate" : "Activate"}>
+                      {u.is_active ? <ShieldOff className="h-4 w-4 text-accent-400" /> : <Shield className="h-4 w-4 text-emerald-400" />}
                     </Button>
-                  )}
+                    {me?.id !== u.id && (
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(u)} title="Delete user">
+                        <Trash2 className="h-4 w-4 text-accent-400 hover:text-accent-600" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </Card>
             </motion.div>

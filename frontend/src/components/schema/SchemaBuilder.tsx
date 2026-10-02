@@ -99,8 +99,8 @@ export function SchemaBuilder({ schema, onChange, readOnly }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="rounded-xl border border-surface-200 dark:border-surface-600 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-xl border border-surface-200 dark:border-surface-600 overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="bg-surface-50 dark:bg-surface-800">
               {!readOnly ? <th className="w-8 px-2 py-2"></th> : null}
@@ -202,7 +202,7 @@ export function SchemaBuilder({ schema, onChange, readOnly }: Props) {
                   <td colSpan={readOnly ? 4 : 6} className="px-6 pb-3 pt-0">
                     <div className="rounded-lg border border-brand-200 bg-brand-50/30 p-3 dark:border-brand-800 dark:bg-brand-900/10">
                       <div className="mb-2 text-xs font-semibold text-brand-600 dark:text-brand-400">Columns for "{field.key || "untitled"}"</div>
-                      <table className="w-full text-xs">
+                      <table className="w-full min-w-[440px] text-xs">
                         <thead>
                           <tr className="border-b border-brand-200 dark:border-brand-800">
                             <th className="px-2 py-1 text-left font-medium text-brand-600 dark:text-brand-400">Column Name</th>

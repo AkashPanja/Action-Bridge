@@ -158,25 +158,28 @@ export function MembersPage({ projectId }: { projectId: string }) {
         <div className="space-y-2">
           {members.map((m) => (
             <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="flex items-center gap-4 px-5 py-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
-                  <UserCheck className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-semibold text-surface-900 dark:text-surface-100">
-                      {m.user_name ?? "Unknown"}
-                    </span>
-                    {m.status === "pending" && (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">pending</span>
-                    )}
-                    <span className="rounded-full bg-surface-100 px-2 py-0.5 text-[10px] font-medium text-surface-600 capitalize dark:bg-surface-700 dark:text-surface-300">{m.role}</span>
+              <Card className="px-5 py-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                  <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
+                      <UserCheck className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-surface-900 dark:text-surface-100">
+                          {m.user_name ?? "Unknown"}
+                        </span>
+                        {m.status === "pending" && (
+                          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">pending</span>
+                        )}
+                        <span className="shrink-0 rounded-full bg-surface-100 px-2 py-0.5 text-[10px] font-medium text-surface-600 capitalize dark:bg-surface-700 dark:text-surface-300">{m.role}</span>
+                      </div>
+                      {m.user_email && (
+                        <p className="mt-0.5 truncate text-xs text-surface-400">{m.user_email}</p>
+                      )}
+                    </div>
                   </div>
-                  {m.user_email && (
-                    <p className="mt-0.5 text-xs text-surface-400">{m.user_email}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 border-t border-surface-100 pt-3 dark:border-surface-700 sm:border-0 sm:pt-0">
                   {m.role !== "owner" && (
                     <>
                       <select
@@ -199,6 +202,7 @@ export function MembersPage({ projectId }: { projectId: string }) {
                       <Shield className="h-3 w-3" /> Owner
                     </span>
                   )}
+                  </div>
                 </div>
               </Card>
             </motion.div>
