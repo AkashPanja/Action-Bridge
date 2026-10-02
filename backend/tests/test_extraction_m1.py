@@ -234,6 +234,84 @@ class TestProviders:
         assert await ensure_default_provider(db_session) is None
 
 
+class TestProviderCloud:
+    async def test_presets(self, client: AsyncClient, admin_headers):
+        resp = await client.get("/api/v1/llm-providers/presets", headers=admin_headers)
+        assert resp.status_code == 200
+        presets = resp.json()
+        assert len(presets) == 13
+        by_id = {p["id"]: p for p in presets}
+        assert by_id["openrouter"]["extra_headers"].get("HTTP-Referer")
+        assert by_id["anthropic"]["kind"] == "anthropic"
+        for preset in presets:
+            assert preset["kind"] in ("openai_compatible", "anthropic")
+            assert preset["base_url"].startswith("http")
+
+    async def test_viewer_cannot_see_presets(self, client: AsyncClient, viewer_headers):
+        assert (await client.get("/api/v1/llm-providers/presets", headers=viewer_headers)).status_code == 403
+
+    async def test_extra_headers_roundtrip(self, client: AsyncClient, admin_headers):
+        resp = await client.post("/api/v1/llm-providers", headers=admin_headers, json={
+            **PROVIDER, "name": "with-headers",
+            "extra_headers": {"X-Title": "Action Bridge"},
+        })
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["extra_headers"] == {"X-Title": "Action Bridge"}
+
+    async def test_extra_headers_rejects_auth_override(self, client: AsyncClient, admin_headers):
+        resp = await client.post("/api/v1/llm-providers", headers=admin_headers, json={
+            **PROVIDER, "name": "bad-headers",
+            "extra_headers": {"Authorization": "Bearer x"},
+        })
+        assert resp.status_code == 400
+
+    async def test_private_url_needs_local(self, client: AsyncClient, admin_headers):
+        resp = await client.post("/api/v1/llm-providers", headers=admin_headers, json={
+            **PROVIDER, "name": "private-nolocal", "is_local": False,
+        })
+        assert resp.status_code == 400
+
+    async def test_models_unsupported_kind(self, client: AsyncClient, admin_headers):
+        created = (await client.post("/api/v1/llm-providers", headers=admin_headers, json={
+            **PROVIDER, "name": "claude", "kind": "anthropic",
+            "base_url": "https://api.anthropic.com", "model": "claude-sonnet-4-20250514",
+        })).json()
+        resp = await client.post(f"/api/v1/llm-providers/{created['id']}/models", headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["supported"] is False
+
+    async def test_models_unreachable(self, client: AsyncClient, admin_headers):
+        created = (await client.post("/api/v1/llm-providers", headers=admin_headers, json={
+            **PROVIDER, "name": "dead", "base_url": "http://localhost:9/v1",
+        })).json()
+        resp = await client.post(f"/api/v1/llm-providers/{created['id']}/models", headers=admin_headers)
+        assert resp.json()["supported"] is False
+
+    async def test_adapter_header_merge(self):
+        from app.services.llm.openai_compatible import OpenAiCompatibleAdapter
+
+        adapter = OpenAiCompatibleAdapter(
+            base_url="http://x/v1", model="m", api_key="k",
+            extra_headers={"X-Title": "Action Bridge"},
+        )
+        headers = adapter._headers()
+        assert headers["Authorization"] == "Bearer k"
+        assert headers["X-Title"] == "Action Bridge"
+
+    async def test_factory_passes_headers(self, db_session):
+        from app.services.llm.factory import build_adapter
+        from app.models.llm_provider import LlmProvider
+
+        provider = LlmProvider(
+            name="h", kind="openai_compatible", base_url="http://localhost:11434/v1",
+            model="m", is_local=True, extra_headers={"X-A": "b"},
+        )
+        db_session.add(provider)
+        await db_session.commit()
+        adapter = await build_adapter(db_session, provider)
+        assert adapter.extra_headers == {"X-A": "b"}
+
+
 # --- Processing settings ---
 
 class TestProcessing:

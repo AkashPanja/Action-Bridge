@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { JobsPage } from "../pages/extraction/JobsPage";
+import { ProvidersPage } from "../pages/extraction/ProvidersPage";
 import { UploadModal } from "../components/extraction/UploadModal";
 
 const JOBS = [
@@ -22,6 +23,21 @@ vi.mock("../hooks/useExtraction", () => ({
   useProjectJobs: () => ({ data: { total: 2, jobs: JOBS }, isLoading: false }),
   useJobMutations: () => ({ retry: { mutate: retry }, cancel: { mutate: cancel } }),
   useProfiles: () => ({ data: [] }),
+  useProviders: () => ({ data: [] }),
+  useProviderPresets: () => ({ data: PRESETS }),
+  useCredentials: () => ({ data: [] }),
+  useProviderMutations: () => ({
+    create: { mutateAsync: vi.fn(), isPending: false },
+    update: { mutateAsync: vi.fn(), isPending: false },
+    remove: { mutate: vi.fn() },
+  }),
+  useCredentialMutations: () => ({
+    create: { mutateAsync: vi.fn(), isPending: false },
+  }),
+}));
+
+vi.mock("../lib/api", () => ({
+  api: { providers: { test: vi.fn() } },
 }));
 
 vi.mock("../hooks/useDocumentTypes", () => ({
@@ -60,5 +76,25 @@ describe("UploadModal", () => {
     render(<UploadModal projectId="p1" open={true} onClose={() => {}} />);
     fireEvent.click(screen.getByText("Upload & Extract"));
     expect(screen.getByText("Choose at least one file")).toBeInTheDocument();
+  });
+});
+
+const PRESETS = [
+  {
+    id: "openai", name: "OpenAI", kind: "openai_compatible",
+    base_url: "https://api.openai.com/v1", default_model: "gpt-4o-mini",
+    key_url: "https://platform.openai.com/api-keys", is_local: false,
+    vision: true, json_schema: true, json_object: true, context_window: 128000,
+    extra_headers: {}, notes: "",
+  },
+];
+
+describe("ProvidersPage gallery", () => {
+  it("renders preset cards and opens quick-add", () => {
+    render(<ProvidersPage />);
+    expect(screen.getByText("Cloud runners — quick add")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("OpenAI"));
+    expect(screen.getByText("Add OpenAI")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("gpt-4o-mini")).toBeInTheDocument();
   });
 });

@@ -46,6 +46,7 @@ class ProviderCreate(BaseModel):
     is_local: bool = False
     context_window: int | None = None
     enabled: bool = True
+    extra_headers: dict = {}
 
 
 class ProviderUpdate(BaseModel):
@@ -62,6 +63,7 @@ class ProviderUpdate(BaseModel):
     is_local: bool | None = None
     context_window: int | None = None
     enabled: bool | None = None
+    extra_headers: dict | None = None
 
 
 class ProviderResponse(BaseModel):
@@ -81,6 +83,7 @@ class ProviderResponse(BaseModel):
     is_local: bool = False
     context_window: int | None = None
     enabled: bool = True
+    extra_headers: dict = {}
 
 
 class ProviderTestResponse(BaseModel):
@@ -91,6 +94,12 @@ class ProviderTestResponse(BaseModel):
     json_ok: bool | None = None
     tokens_in: int | None = None
     tokens_out: int | None = None
+
+
+class ProviderModelsResponse(BaseModel):
+    supported: bool
+    models: list[str] = []
+    detail: str = ""
 
 
 # --- Processing settings ---

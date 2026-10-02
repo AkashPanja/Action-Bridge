@@ -19,17 +19,20 @@ class OpenAiCompatibleAdapter(LlmAdapter):
         api_key: str | None = None,
         use_json_schema: bool = False,
         use_json_object: bool = False,
+        extra_headers: dict | None = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.api_key = api_key
         self.use_json_schema = use_json_schema
         self.use_json_object = use_json_object
+        self.extra_headers = dict(extra_headers or {})
 
     def _headers(self) -> dict:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
+        headers.update(self.extra_headers)
         return headers
 
     async def _post(self, payload: dict, timeout_s: float) -> dict:

@@ -5,10 +5,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import RequirePermission
 from app.database import get_db
 from app.models.llm_provider import LlmProvider
-from app.schemas.extraction import ProviderCreate, ProviderResponse, ProviderTestResponse, ProviderUpdate
+from app.schemas.extraction import ProviderCreate, ProviderModelsResponse, ProviderResponse, ProviderTestResponse, ProviderUpdate
 from app.services import provider_service
+from app.services.llm.presets import list_presets
 
 router = APIRouter(prefix="/api/v1/llm-providers", tags=["Providers"])
+
+
+@router.get("/presets", response_model=list[dict])
+async def get_presets(user=Depends(RequirePermission("providers:manage"))):
+    return list_presets()
 
 
 @router.get("", response_model=list[ProviderResponse])
@@ -90,3 +96,15 @@ async def test_provider(
         return await provider_service.test_provider(db, provider)
     except Exception as exc:  # noqa: BLE001 - test action must report, not 500
         return {"ok": False, "detail": f"{type(exc).__name__}: {exc}", "latency_ms": 0}
+
+
+@router.post("/{provider_id}/models", response_model=ProviderModelsResponse)
+async def list_provider_models(
+    provider_id: str,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(RequirePermission("providers:manage")),
+):
+    provider = await db.get(LlmProvider, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    return await provider_service.list_models(db, provider)

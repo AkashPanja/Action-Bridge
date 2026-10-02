@@ -39,6 +39,7 @@ def public_view(provider: LlmProvider) -> dict:
         "is_local": provider.is_local,
         "context_window": provider.context_window,
         "enabled": provider.enabled,
+        "extra_headers": provider.extra_headers or {},
     }
 
 
@@ -59,6 +60,15 @@ def _validate(data: dict, partial: bool = False):
         raise ValueError("max_concurrency must be >= 1")
     if "timeout_s" in data and (data["timeout_s"] or 0) <= 0:
         raise ValueError("timeout_s must be positive")
+    if "extra_headers" in data and data["extra_headers"] is not None:
+        headers = data["extra_headers"]
+        if not isinstance(headers, dict) or len(headers) > 20:
+            raise ValueError("extra_headers must be an object with at most 20 entries")
+        for key, value in headers.items():
+            if not isinstance(key, str) or not isinstance(value, str):
+                raise ValueError("extra_headers keys and values must be strings")
+            if key.lower() in ("authorization", "content-length", "host"):
+                raise ValueError(f"extra_headers must not override {key}")
 
 
 async def create_provider(db: AsyncSession, data: dict) -> LlmProvider:
@@ -89,6 +99,7 @@ async def create_provider(db: AsyncSession, data: dict) -> LlmProvider:
         is_local=bool(data.get("is_local", False)),
         context_window=data.get("context_window"),
         enabled=bool(data.get("enabled", True)),
+        extra_headers=dict(data.get("extra_headers") or {}),
     )
     db.add(provider)
     await db.commit()
@@ -106,6 +117,10 @@ async def update_provider(db: AsyncSession, provider: LlmProvider, data: dict) -
                 "max_concurrency", "timeout_s", "is_local", "context_window", "enabled"):
         if key in data and data[key] is not None:
             setattr(provider, key, data[key])
+    if "extra_headers" in data and data["extra_headers"] is not None:
+        if not isinstance(data["extra_headers"], dict):
+            raise ValueError("extra_headers must be an object")
+        provider.extra_headers = data["extra_headers"]
     if "base_url" in data and data["base_url"]:
         provider.base_url = data["base_url"].rstrip("/")
     if "credential_id" in data:
@@ -120,6 +135,33 @@ async def update_provider(db: AsyncSession, provider: LlmProvider, data: dict) -
     await db.commit()
     await db.refresh(provider)
     return provider
+
+
+async def list_models(db: AsyncSession, provider: LlmProvider) -> dict:
+    """Query the OpenAI-compatible /models endpoint for a picker (graceful fallback)."""
+    import httpx
+
+    if provider.kind != "openai_compatible":
+        return {"supported": False, "models": [],
+                "detail": "Model listing is only available for OpenAI-compatible providers."}
+    adapter = await build_adapter(db, provider)
+    base_url = adapter.base_url if isinstance(adapter, OpenAiCompatibleAdapter) else provider.base_url.rstrip("/")
+    headers = {"Content-Type": "application/json"}
+    if isinstance(adapter, OpenAiCompatibleAdapter):
+        headers = adapter._headers()
+    try:
+        async with httpx.AsyncClient(timeout=min(provider.timeout_s, 30)) as client:
+            resp = await client.get(f"{base_url}/models", headers=headers)
+    except httpx.HTTPError as exc:
+        return {"supported": False, "models": [], "detail": f"Could not reach /models: {exc}"}
+    if resp.status_code != 200:
+        return {"supported": False, "models": [],
+                "detail": f"/models returned {resp.status_code}"}
+    try:
+        ids = [m.get("id") for m in resp.json().get("data", []) if m.get("id")]
+    except ValueError:
+        return {"supported": False, "models": [], "detail": "Non-JSON /models response."}
+    return {"supported": True, "models": sorted(ids), "detail": f"{len(ids)} model(s) found."}
 
 
 async def log_call(

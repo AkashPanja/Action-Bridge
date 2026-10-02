@@ -6,6 +6,7 @@ import type {
   PlaygroundResult,
   ProcessingSettings,
   Provider,
+  ProviderPreset,
   ProviderTestResult,
   Submission,
 } from "../types/extraction";
@@ -159,6 +160,11 @@ export const api = {
   },
   providers: {
     list: () => request<Provider[]>("/llm-providers"),
+    presets: () => request<ProviderPreset[]>("/llm-providers/presets"),
+    models: (id: string) =>
+      request<{ supported: boolean; models: string[]; detail: string }>(
+        `/llm-providers/${id}/models`, { method: "POST" },
+      ),
     create: (data: Record<string, unknown>) =>
       request<Provider>("/llm-providers", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: Record<string, unknown>) =>

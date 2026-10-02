@@ -34,5 +34,6 @@ async def build_adapter(db: AsyncSession, provider: LlmProvider) -> LlmAdapter:
             api_key=api_key,
             use_json_schema=provider.json_schema,
             use_json_object=provider.json_object,
+            extra_headers=provider.extra_headers or {},
         )
     raise ValueError(f"Unknown provider kind: {provider.kind}")

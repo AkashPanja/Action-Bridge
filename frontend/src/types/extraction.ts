@@ -21,6 +21,23 @@ export interface Provider {
   is_local: boolean;
   context_window: number | null;
   enabled: boolean;
+  extra_headers: Record<string, string>;
+}
+
+export interface ProviderPreset {
+  id: string;
+  name: string;
+  kind: "openai_compatible" | "anthropic";
+  base_url: string;
+  default_model: string;
+  key_url: string;
+  is_local: boolean;
+  vision: boolean;
+  json_schema: boolean;
+  json_object: boolean;
+  context_window: number | null;
+  extra_headers: Record<string, string>;
+  notes: string;
 }
 
 export interface ProviderTestResult {

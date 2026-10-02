@@ -23,6 +23,10 @@ export function useProviders() {
   return useQuery({ queryKey: ["providers"], queryFn: api.providers.list });
 }
 
+export function useProviderPresets() {
+  return useQuery({ queryKey: ["provider-presets"], queryFn: api.providers.presets });
+}
+
 export function useProviderMutations() {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["providers"] });
