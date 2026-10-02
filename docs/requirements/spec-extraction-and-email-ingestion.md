@@ -260,3 +260,69 @@ Webhook (if `callback_url`): POST with the job result, signed with an HMAC heade
 2. Default scan handling when cloud is disallowed. This spec sends the document to review for manual entry; a local OCR model is the later fix.
 3. Numeric mapping from grounding signals to confidence, if the existing logic needs numbers (FR-8.2).
 4. Retention period for stored email bodies and attachments.
+
+---
+
+## 13. Revision 1.1 — PM review (code-verified, 2026-10-02)
+
+This section resolves the §12 implementer items against the existing code and records
+decisions that override or clarify the body above. Where this section conflicts with
+the body, this section wins.
+
+### R1. Implementer open items — resolved
+
+1. **Bot-submit internals** (`backend/app/services/document_service.py:153`, `submit_document()`).
+   Requires a numeric 0–1 `confidence_scores` entry for **every** field in `extracted_data`
+   and returns error strings otherwise. The FR-8.2 signal→number mapping table is therefore
+   **mandatory, not optional**.
+2. **Source-file viewing**: the attachments API (upload/list/delete, served under `/uploads`)
+   exists and `DocumentDetail.tsx` links to files, but there is **no inline PDF/image preview**.
+   FR-8.4 requires building a viewer panel.
+3. **Schemas**: `DocumentType.schema_definition` is Draft-7 JSON Schema
+   (`backend/app/utils/json_schema.py`). Combined-mode nested schemas validate fine, but the
+   confidence validator only understands flat numbers and arrays-of-rows — nested objects need
+   the R3 rule below.
+4. **API keys**: `dc_` prefix (`backend/app/auth/service.py:82`), per-project scoping via
+   `api_key_project_scopes`, default scope `documents:write`. **Decision: keep the `dc_` prefix**
+   through the rename; it is cosmetic and changing it breaks existing bots.
+
+### R2. Auto-approve conflict — decision (new FR-8.1a)
+
+`submit_document()` auto-marks schema-clean documents `approved`, which would let extraction
+output bypass human review. **Decision:** the pipeline always forces `pending_review` for
+extractor-created documents (new `FR-8.1a`; implement by skipping auto-approve when
+`actor="extractor"`, never by duplicating submit logic). Out-of-scope auto-approval stays
+out of scope.
+
+### R3. Nested confidence rule — clarification (extends FR-8.2)
+
+For combined-mode nested objects, the mapping applies **recursively per leaf**; the stored
+per-field score for a parent object is the **mean of its leaf scores**. Table (array-of-rows)
+handling is unchanged.
+
+### R4. Provider call log — new FR-1.8
+
+M4 acceptance ("zero non-local calls") is unverifiable from `jobs.usage` alone.
+**New table `provider_calls`**: provider, job, local flag, latency, tokens in/out, ok/error,
+timestamp. Written on every LLM call; queryable for the M4 audit.
+
+### R5. Environment and conventions
+
+- New env vars: `APP_ENCRYPTION_KEY` (required when credentials exist, else refuse startup),
+  `WORKER_POLL_SECONDS` (default 2), `FRONTEND_URL` already exists.
+- DB convention: new tables go in `backend/app/models/`, registered in `models/__init__.py`
+  (dev SQLite uses `create_all`), **plus** an Alembic migration (PostgreSQL).
+- RBAC: extend `PERMISSION_MAP` (`backend/app/auth/deps.py`) with `credentials:manage`,
+  `providers:manage`, `processing:manage`, `jobs:read`, `jobs:write` — all admin-only in M1
+  except `jobs:read` (admin, editor, viewer).
+- `dc_`-prefixed project API keys get `documents:submit`-equivalent extract rights in M2
+  (submit + read own-project jobs only).
+- Ollama + `actionbridge-qwen25-3b` Modelfile setup is an environment prerequisite tracked
+  alongside M1, not a code task. Verify on the target machine (Windows 11, GTX 1660 4 GB):
+  `ollama serve`, `ollama create`, `curl localhost:11434/v1/models`.
+
+### R6. M1 scope lock
+
+M1 acceptance stays API-level (per §11). The Settings UI pages (Providers, Credentials,
+Processing) and the Jobs page ship with the M2 UI batch so they are built once against the
+final endpoints. No UI in M1.

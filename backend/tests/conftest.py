@@ -12,6 +12,10 @@ _TEST_DB_PATH = os.path.join(tempfile.gettempdir(), "actionbridge_test.db").repl
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_TEST_DB_PATH}"
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
 os.environ["DEBUG"] = "false"
+if not os.environ.get("APP_ENCRYPTION_KEY"):
+    from cryptography.fernet import Fernet
+
+    os.environ["APP_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
 
 from app.database import AsyncSessionLocal, engine
 from app.main import app

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     setup_complete_file: str = ".setup-complete"
     upload_dir: str = "./uploads"
     frontend_url: str = "http://localhost:5173"
+    app_encryption_key: str = ""
 
     @property
     def is_postgres(self) -> bool:

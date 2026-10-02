@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -11,10 +12,14 @@ from app.models import Base
 from app.routers import (
     attachments,
     comments,
+    credentials,
     document_types,
     documents,
     invitations,
+    jobs,
+    llm_providers,
     notifications,
+    processing,
     projects,
     regex_patterns,
     settings as settings_router,
@@ -23,11 +28,28 @@ from app.routers import (
 
 from .auth.router import router as auth_router
 
+logger = logging.getLogger("app.main")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    async with AsyncSessionLocal() as db:
+        # FR-2.2: refuse to start when credentials exist but no master key.
+        from sqlalchemy import select
+
+        from app.models.credential import Credential
+        from app.services.provider_service import ensure_default_provider
+
+        count = (await db.execute(select(Credential.id).limit(1))).first()
+        if count and not os.getenv("APP_ENCRYPTION_KEY"):
+            raise RuntimeError(
+                "Credentials exist but APP_ENCRYPTION_KEY is not set. Refusing to start."
+            )
+        seeded = await ensure_default_provider(db)
+        if seeded:
+            logger.info("Seeded default provider '%s' (%s).", seeded.name, seeded.model)
     yield
 
 
@@ -46,6 +68,10 @@ app.include_router(auth_router)
 app.include_router(projects.router)
 app.include_router(document_types.router)
 app.include_router(documents.router)
+app.include_router(credentials.router)
+app.include_router(llm_providers.router)
+app.include_router(processing.router)
+app.include_router(jobs.router)
 app.include_router(regex_patterns.router)
 app.include_router(settings_router.router)
 app.include_router(notifications.router)
