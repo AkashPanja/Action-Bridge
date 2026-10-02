@@ -9,6 +9,8 @@ interface AuthContextType {
   isLoading: boolean;
   setupRequired: boolean;
   login: (email: string, password: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  confirmPasswordReset: (token: string, newPassword: string) => Promise<void>;
   completeSetup: (name: string, email: string, password: string, smtp?: Record<string, unknown>, companyName?: string) => Promise<void>;
   logout: () => void;
 }
@@ -67,6 +69,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   }
 
+  async function requestPasswordReset(email: string) {
+    const res = await fetch(`${API_BASE}/auth/password-reset`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Request failed" }));
+      throw new Error(err.detail);
+    }
+  }
+
+  async function confirmPasswordReset(token: string, newPassword: string) {
+    const res = await fetch(`${API_BASE}/auth/password-reset/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, new_password: newPassword }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Reset failed" }));
+      throw new Error(err.detail);
+    }
+  }
+
   async function completeSetup(name: string, email: string, password: string, smtp?: Record<string, unknown>, companyName?: string) {
     const body: Record<string, unknown> = { name, email, password };
     body.company_name = companyName || "Action Bridge";
@@ -96,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, setupRequired, login, completeSetup, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, setupRequired, login, requestPasswordReset, confirmPasswordReset, completeSetup, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -4,6 +4,8 @@ import { AppShell } from "../components/layout/AppShell";
 import { ApiKeys } from "../pages/ApiKeys";
 import { DocumentDetail } from "../pages/documents/DocumentDetail";
 import { LoginPage } from "../pages/auth/LoginPage";
+import { ForgotPasswordPage } from "../pages/auth/ForgotPasswordPage";
+import { ResetPasswordPage } from "../pages/auth/ResetPasswordPage";
 import { NotFound } from "../pages/NotFound";
 import { ProjectDetail } from "../pages/projects/ProjectDetail";
 import { ProjectList } from "../pages/projects/ProjectList";
@@ -20,6 +22,14 @@ export const router = createBrowserRouter([
   {
     path: "/setup",
     element: <SetupPage />,
+  },
+  {
+    path: "/forgot-password",
+    element: <ForgotPasswordPage />,
+  },
+  {
+    path: "/reset-password",
+    element: <ResetPasswordPage />,
   },
   {
     path: "/",

@@ -59,12 +59,13 @@ async def send_test_email(
     smtp = await get_setting(db, "smtp")
     if not smtp or not smtp.get("host"):
         raise HTTPException(status_code=400, detail="SMTP not configured")
-    company = await get_setting(db, "company") or DEFAULTS["company"]
-    await send_email(
+    error = await send_email(
         db,
-        to=user.email,
+        to_email=user.email,
         subject="Test Email from Action Bridge",
-        template="document_approved",  # reuse existing template
-        context={"company_name": company.get("name", "Action Bridge")},
+        template_name="document_approved",
+        template_vars={"company_name": (await get_setting(db, "company") or DEFAULTS["company"]).get("name", "Action Bridge")},
     )
-    return {"message": "Test email sent"}
+    if error:
+        raise HTTPException(status_code=502, detail=f"SMTP send failed: {error}")
+    return {"message": f"Test email sent to {user.email}"}

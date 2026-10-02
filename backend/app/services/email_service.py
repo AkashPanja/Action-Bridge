@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
@@ -5,6 +7,8 @@ from email.mime.text import MIMEText
 
 from app.auth.service import get_setting
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger("app.email")
 
 HTML_TEMPLATES = {
     "document_pending_review": """
@@ -160,16 +164,38 @@ def render_template(template: str, vars: dict) -> str:
     return result
 
 
+def _deliver(smtp_cfg: dict, msg: MIMEMultipart, to_email: str) -> None:
+    host = smtp_cfg["host"]
+    port = int(smtp_cfg.get("port") or 587)
+    username = smtp_cfg.get("username")
+    password = smtp_cfg.get("password")
+    ctx = ssl.create_default_context()
+
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, context=ctx, timeout=30) as server:
+            if username:
+                server.login(username, password)
+            server.sendmail(msg["From"], [to_email], msg.as_string())
+    else:
+        with smtplib.SMTP(host, port, timeout=30) as server:
+            if smtp_cfg.get("use_tls", True):
+                server.starttls(context=ctx)
+            if username:
+                server.login(username, password)
+            server.sendmail(msg["From"], [to_email], msg.as_string())
+
+
 async def send_email(
     db: AsyncSession,
     to_email: str,
     subject: str,
     template_name: str,
     template_vars: dict,
-) -> bool:
+) -> str | None:
+    """Send an email. Returns None on success, or an error message on failure."""
     smtp_cfg = await get_setting(db, "smtp")
-    if not smtp_cfg:
-        return False
+    if not smtp_cfg or not smtp_cfg.get("host"):
+        return "SMTP is not configured"
     company = await get_setting(db, "company")
     company_name = (company or {}).get("name", "Action Bridge")
     logo = (company or {}).get("logo", "")
@@ -182,24 +208,14 @@ async def send_email(
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = smtp_cfg.get("from_email", "noreply@actionbridge.com")
+    msg["From"] = smtp_cfg.get("from_email") or smtp_cfg.get("username") or "noreply@actionbridge.com"
     msg["To"] = to_email
     msg.attach(MIMEText(plain, "plain"))
     msg.attach(MIMEText(html, "html"))
 
     try:
-        ctx = ssl.create_default_context()
-        if smtp_cfg.get("use_tls", True):
-            with smtplib.SMTP(smtp_cfg["host"], smtp_cfg["port"]) as server:
-                server.starttls(context=ctx)
-                if smtp_cfg.get("username"):
-                    server.login(smtp_cfg["username"], smtp_cfg["password"])
-                server.sendmail(msg["From"], [to_email], msg.as_string())
-        else:
-            with smtplib.SMTP_SSL(smtp_cfg["host"], smtp_cfg["port"], context=ctx) as server:
-                if smtp_cfg.get("username"):
-                    server.login(smtp_cfg["username"], smtp_cfg["password"])
-                server.sendmail(msg["From"], [to_email], msg.as_string())
-        return True
-    except Exception:
-        return False
+        await asyncio.to_thread(_deliver, smtp_cfg, msg, to_email)
+        return None
+    except Exception as exc:
+        logger.exception("Failed to send %r to %s", subject, to_email)
+        return f"{type(exc).__name__}: {exc}"

@@ -144,9 +144,12 @@ async def request_password_reset(
     if not user:
         return {"message": "If email exists, a reset link has been sent"}
     token = create_access_token({"sub": user.id, "purpose": "password_reset"}, expires_minutes=60)
+    from app.config import settings
+
+    reset_link = f"{settings.frontend_url.rstrip('/')}/reset-password?token={token}"
     await send_email(db, data.email, "Password Reset", "password_reset", {
         "name": user.name,
-        "reset_link": f"{'/reset-password?token=' + token}",
+        "reset_link": reset_link,
     })
     return {"message": "If email exists, a reset link has been sent"}
 

@@ -1,0 +1,431 @@
+{
+  "info": {
+    "name": "ActionBridge - Invoice API",
+    "description": "Complete API collection for submitting invoices with multiple line items to ActionBridge.\n\nBase URL: https://actionbridge.bnfkquodqjp.uk\n\n## Flow:\n1. Check Setup → Run Setup (first time only)\n2. Login → Get JWT token\n3. Create Project\n4. Create Invoice Document Type (with line_items table)\n5. Submit invoices with line items\n6. List / Export documents",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Check Setup Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set('setup_required', jsonData.setup_required);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "status"]
+            }
+          }
+        },
+        {
+          "name": "Setup (First Time)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/setup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "setup"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"company_name\": \"My Company\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set('token', jsonData.access_token);",
+                  "pm.collectionVariables.set('user_id', jsonData.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Projects",
+      "item": [
+        {
+          "name": "Create Project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set('project_id', jsonData.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invoice Processing\",\n  \"description\": \"RPA invoice submission and review\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Projects",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects"]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Invoice Document Type",
+      "item": [
+        {
+          "name": "Create Invoice Doc Type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set('invoice_doc_type_id', jsonData.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/document-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "document-types"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invoice\",\n  \"schema_definition\": {\n    \"type\": \"object\",\n    \"title\": \"Invoice\",\n    \"properties\": {\n      \"invoice_number\": {\n        \"type\": \"string\",\n        \"title\": \"Invoice Number\"\n      },\n      \"vendor_name\": {\n        \"type\": \"string\",\n        \"title\": \"Vendor Name\"\n      },\n      \"vendor_address\": {\n        \"type\": \"string\",\n        \"title\": \"Vendor Address\"\n      },\n      \"invoice_date\": {\n        \"type\": \"string\",\n        \"format\": \"date\",\n        \"title\": \"Invoice Date\"\n      },\n      \"due_date\": {\n        \"type\": \"string\",\n        \"format\": \"date\",\n        \"title\": \"Due Date\"\n      },\n      \"currency\": {\n        \"type\": \"string\",\n        \"title\": \"Currency\",\n        \"enum\": [\"USD\", \"EUR\", \"GBP\", \"INR\", \"CAD\", \"AUD\"]\n      },\n      \"subtotal\": {\n        \"type\": \"number\",\n        \"title\": \"Subtotal\"\n      },\n      \"tax_total\": {\n        \"type\": \"number\",\n        \"title\": \"Tax Total\"\n      },\n      \"total_amount\": {\n        \"type\": \"number\",\n        \"title\": \"Total Amount\"\n      },\n      \"status\": {\n        \"type\": \"string\",\n        \"title\": \"Status\",\n        \"enum\": [\"Pending\", \"Approved\", \"Paid\", \"Rejected\"]\n      },\n      \"notes\": {\n        \"type\": \"string\",\n        \"title\": \"Notes\"\n      },\n      \"line_items\": {\n        \"type\": \"array\",\n        \"title\": \"Line Items\",\n        \"items\": {\n          \"type\": \"object\",\n          \"properties\": {\n            \"item_code\": {\n              \"type\": \"string\",\n              \"title\": \"Item Code\"\n            },\n            \"description\": {\n              \"type\": \"string\",\n              \"title\": \"Description\"\n            },\n            \"quantity\": {\n              \"type\": \"number\",\n              \"title\": \"Quantity\"\n            },\n            \"unit_price\": {\n              \"type\": \"number\",\n              \"title\": \"Unit Price\"\n            },\n            \"line_total\": {\n              \"type\": \"number\",\n              \"title\": \"Line Total\"\n            },\n            \"tax_rate\": {\n              \"type\": \"number\",\n              \"title\": \"Tax Rate (%)\"\n            },\n            \"tax_amount\": {\n              \"type\": \"number\",\n              \"title\": \"Tax Amount\"\n            }\n          },\n          \"required\": [\"item_code\", \"description\", \"quantity\", \"unit_price\", \"line_total\"]\n        }\n      }\n    },\n    \"required\": [\"invoice_number\", \"vendor_name\", \"invoice_date\", \"total_amount\", \"line_items\"]\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "List Doc Types",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/document-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "document-types"]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Submit Invoices",
+      "item": [
+        {
+          "name": "Submit Invoice #1 (3 line items)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set('doc_id_1', jsonData.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/documents/document-types/{{invoice_doc_type_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "documents", "document-types", "{{invoice_doc_type_id}}"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"extracted_data\": {\n    \"invoice_number\": \"INV-2024-001\",\n    \"vendor_name\": \"Acme Corp\",\n    \"vendor_address\": \"123 Business Ave, Suite 400, New York, NY 10001\",\n    \"invoice_date\": \"2024-01-15\",\n    \"due_date\": \"2024-02-14\",\n    \"currency\": \"USD\",\n    \"subtotal\": 4750.00,\n    \"tax_total\": 475.00,\n    \"total_amount\": 5225.00,\n    \"status\": \"Pending\",\n    \"notes\": \"Quarterly IT equipment purchase\",\n    \"line_items\": [\n      {\n        \"item_code\": \"IT-LAP-001\",\n        \"description\": \"Dell Latitude 5540 Laptop\",\n        \"quantity\": 5,\n        \"unit_price\": 1200.00,\n        \"line_total\": 6000.00,\n        \"tax_rate\": 10,\n        \"tax_amount\": 600.00\n      },\n      {\n        \"item_code\": \"IT-MON-002\",\n        \"description\": \"Dell 27-inch Monitor\",\n        \"quantity\": 5,\n        \"unit_price\": 350.00,\n        \"line_total\": 1750.00,\n        \"tax_rate\": 10,\n        \"tax_amount\": 175.00\n      },\n      {\n        \"item_code\": \"IT-KB-003\",\n        \"description\": \"Logitech Wireless Keyboard\",\n        \"quantity\": 10,\n        \"unit_price\": 45.00,\n        \"line_total\": 450.00,\n        \"tax_rate\": 10,\n        \"tax_amount\": 45.00\n      }\n    ]\n  },\n  \"confidence_scores\": {\n    \"invoice_number\": 0.99,\n    \"vendor_name\": 0.97,\n    \"vendor_address\": 0.88,\n    \"invoice_date\": 0.99,\n    \"due_date\": 0.95,\n    \"currency\": 0.98,\n    \"subtotal\": 0.96,\n    \"tax_total\": 0.95,\n    \"total_amount\": 0.99,\n    \"status\": 0.90,\n    \"notes\": 0.75,\n    \"line_items\": [\n      {\n        \"item_code\": 0.99,\n        \"description\": 0.97,\n        \"quantity\": 0.99,\n        \"unit_price\": 0.98,\n        \"line_total\": 0.98,\n        \"tax_rate\": 0.95,\n        \"tax_amount\": 0.95\n      },\n      {\n        \"item_code\": 0.99,\n        \"description\": 0.96,\n        \"quantity\": 0.99,\n        \"unit_price\": 0.98,\n        \"line_total\": 0.98,\n        \"tax_rate\": 0.95,\n        \"tax_amount\": 0.95\n      },\n      {\n        \"item_code\": 0.99,\n        \"description\": 0.95,\n        \"quantity\": 0.99,\n        \"unit_price\": 0.98,\n        \"line_total\": 0.98,\n        \"tax_rate\": 0.95,\n        \"tax_amount\": 0.95\n      }\n    ]\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Submit Invoice #2 (2 line items)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/documents/document-types/{{invoice_doc_type_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "documents", "document-types", "{{invoice_doc_type_id}}"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"extracted_data\": {\n    \"invoice_number\": \"INV-2024-002\",\n    \"vendor_name\": \"GlobalTech Solutions\",\n    \"vendor_address\": \"456 Innovation Drive, San Francisco, CA 94105\",\n    \"invoice_date\": \"2024-02-01\",\n    \"due_date\": \"2024-03-01\",\n    \"currency\": \"USD\",\n    \"subtotal\": 3200.00,\n    \"tax_total\": 320.00,\n    \"total_amount\": 3520.00,\n    \"status\": \"Approved\",\n    \"notes\": \"Software licenses renewal\",\n    \"line_items\": [\n      {\n        \"item_code\": \"SW-MS-001\",\n        \"description\": \"Microsoft 365 Business Premium - 10 Licenses\",\n        \"quantity\": 10,\n        \"unit_price\": 20.00,\n        \"line_total\": 200.00,\n        \"tax_rate\": 10,\n        \"tax_amount\": 20.00\n      },\n      {\n        \"item_code\": \"SW-JIRA-002\",\n        \"description\": \"Atlassian Jira Cloud - Enterprise\",\n        \"quantity\": 1,\n        \"unit_price\": 3000.00,\n        \"line_total\": 3000.00,\n        \"tax_rate\": 10,\n        \"tax_amount\": 300.00\n      }\n    ]\n  },\n  \"confidence_scores\": {\n    \"invoice_number\": 0.99,\n    \"vendor_name\": 0.96,\n    \"vendor_address\": 0.85,\n    \"invoice_date\": 0.98,\n    \"due_date\": 0.93,\n    \"currency\": 0.99,\n    \"subtotal\": 0.97,\n    \"tax_total\": 0.96,\n    \"total_amount\": 0.98,\n    \"status\": 0.95,\n    \"notes\": 0.80,\n    \"line_items\": [\n      {\n        \"item_code\": 0.99,\n        \"description\": 0.97,\n        \"quantity\": 0.99,\n        \"unit_price\": 0.98,\n        \"line_total\": 0.98,\n        \"tax_rate\": 0.95,\n        \"tax_amount\": 0.95\n      },\n      {\n        \"item_code\": 0.99,\n        \"description\": 0.98,\n        \"quantity\": 0.99,\n        \"unit_price\": 0.99,\n        \"line_total\": 0.99,\n        \"tax_rate\": 0.95,\n        \"tax_amount\": 0.95\n      }\n    ]\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Submit Invoice #3 (1 line item - simple)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/documents/document-types/{{invoice_doc_type_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "documents", "document-types", "{{invoice_doc_type_id}}"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"extracted_data\": {\n    \"invoice_number\": \"INV-2024-003\",\n    \"vendor_name\": \"OfficeSupplies Inc.\",\n    \"vendor_address\": \"789 Market Street, Chicago, IL 60601\",\n    \"invoice_date\": \"2024-03-10\",\n    \"due_date\": \"2024-04-09\",\n    \"currency\": \"USD\",\n    \"subtotal\": 12500.00,\n    \"tax_total\": 0.00,\n    \"total_amount\": 12500.00,\n    \"status\": \"Paid\",\n    \"notes\": \"Annual office furniture order - tax exempt\",\n    \"line_items\": [\n      {\n        \"item_code\": \"FURN-DESK-001\",\n        \"description\": \"Standing Desk Electric Height-Adjustable 60x30\",\n        \"quantity\": 25,\n        \"unit_price\": 500.00,\n        \"line_total\": 12500.00,\n        \"tax_rate\": 0,\n        \"tax_amount\": 0\n      }\n    ]\n  },\n  \"confidence_scores\": {\n    \"invoice_number\": 0.99,\n    \"vendor_name\": 0.98,\n    \"vendor_address\": 0.90,\n    \"invoice_date\": 0.99,\n    \"due_date\": 0.96,\n    \"currency\": 0.99,\n    \"subtotal\": 0.98,\n    \"tax_total\": 0.99,\n    \"total_amount\": 0.99,\n    \"status\": 0.97,\n    \"notes\": 0.85,\n    \"line_items\": [\n      {\n        \"item_code\": 0.99,\n        \"description\": 0.98,\n        \"quantity\": 0.99,\n        \"unit_price\": 0.99,\n        \"line_total\": 0.99,\n        \"tax_rate\": 0.99,\n        \"tax_amount\": 0.99\n      }\n    ]\n  }\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Retrieve & Export",
+      "item": [
+        {
+          "name": "List All Documents",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/documents",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "documents"]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ]
+          }
+        },
+        {
+          "name": "Get Document Detail with History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/documents/{{doc_id_1}}?include_history=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "documents", "{{doc_id_1}}"],
+              "query": [{ "key": "include_history", "value": "true" }]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ]
+          }
+        },
+        {
+          "name": "Filter: Pending Invoices Only",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/documents?status=pending&document_type_id={{invoice_doc_type_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "documents"],
+              "query": [
+                { "key": "status", "value": "pending" },
+                { "key": "document_type_id", "value": "{{invoice_doc_type_id}}" }
+              ]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ]
+          }
+        },
+        {
+          "name": "Export as CSV",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/documents/export?format=csv&document_type_id={{invoice_doc_type_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "documents", "export"],
+              "query": [
+                { "key": "format", "value": "csv" },
+                { "key": "document_type_id", "value": "{{invoice_doc_type_id}}" }
+              ]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ]
+          }
+        },
+        {
+          "name": "Export as XLSX",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/documents/export?format=xlsx&document_type_id={{invoice_doc_type_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "documents", "export"],
+              "query": [
+                { "key": "format", "value": "xlsx" },
+                { "key": "document_type_id", "value": "{{invoice_doc_type_id}}" }
+              ]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. RPA Bot - API Key Access",
+      "item": [
+        {
+          "name": "Create API Key (for RPA bot)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set('rpa_api_key', jsonData.raw_key);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/api-keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "api-keys"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"RPA Invoice Bot\",\n  \"scopes\": [\"documents:write\"],\n  \"project_ids\": [\"{{project_id}}\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Submit Invoice via API Key (Bot)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/projects/{{project_id}}/documents/document-types/{{invoice_doc_type_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "projects", "{{project_id}}", "documents", "document-types", "{{invoice_doc_type_id}}"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{rpa_api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"extracted_data\": {\n    \"invoice_number\": \"INV-2024-004\",\n    \"vendor_name\": \"CloudHosting Pro\",\n    \"invoice_date\": \"2024-04-05\",\n    \"due_date\": \"2024-05-05\",\n    \"currency\": \"USD\",\n    \"subtotal\": 840.00,\n    \"tax_total\": 84.00,\n    \"total_amount\": 924.00,\n    \"status\": \"Pending\",\n    \"line_items\": [\n      {\n        \"item_code\": \"HOST-001\",\n        \"description\": \"Dedicated Server - Monthly\",\n        \"quantity\": 3,\n        \"unit_price\": 200.00,\n        \"line_total\": 600.00,\n        \"tax_rate\": 10,\n        \"tax_amount\": 60.00\n      },\n      {\n        \"item_code\": \"HOST-DNS-002\",\n        \"description\": \"DNS Management - Annual\",\n        \"quantity\": 1,\n        \"unit_price\": 240.00,\n        \"line_total\": 240.00,\n        \"tax_rate\": 10,\n        \"tax_amount\": 24.00\n      }\n    ]\n  },\n  \"confidence_scores\": {\n    \"invoice_number\": 0.99,\n    \"vendor_name\": 0.97,\n    \"invoice_date\": 0.99,\n    \"due_date\": 0.95,\n    \"currency\": 0.99,\n    \"subtotal\": 0.97,\n    \"tax_total\": 0.96,\n    \"total_amount\": 0.98,\n    \"status\": 0.95,\n    \"line_items\": [\n      {\n        \"item_code\": 0.99,\n        \"description\": 0.97,\n        \"quantity\": 0.99,\n        \"unit_price\": 0.98,\n        \"line_total\": 0.98,\n        \"tax_rate\": 0.95,\n        \"tax_amount\": 0.95\n      },\n      {\n        \"item_code\": 0.99,\n        \"description\": 0.98,\n        \"quantity\": 0.99,\n        \"unit_price\": 0.99,\n        \"line_total\": 0.99,\n        \"tax_rate\": 0.95,\n        \"tax_amount\": 0.95\n      }\n    ]\n  }\n}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://actionbridge.bnfkquodqjp.uk"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "project_id",
+      "value": ""
+    },
+    {
+      "key": "invoice_doc_type_id",
+      "value": ""
+    },
+    {
+      "key": "doc_id_1",
+      "value": ""
+    },
+    {
+      "key": "rpa_api_key",
+      "value": ""
+    },
+    {
+      "key": "setup_required",
+      "value": ""
+    }
+  ]
+}

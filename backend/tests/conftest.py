@@ -1,5 +1,6 @@
 import asyncio
 import os
+import tempfile
 from typing import AsyncGenerator
 
 import pytest
@@ -7,8 +8,10 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test.db"
+_TEST_DB_PATH = os.path.join(tempfile.gettempdir(), "actionbridge_test.db").replace("\\", "/")
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_TEST_DB_PATH}"
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
+os.environ["DEBUG"] = "false"
 
 from app.database import AsyncSessionLocal, engine
 from app.main import app

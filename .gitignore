@@ -9,10 +9,13 @@ venv/
 node_modules/
 dist/
 .vite/
+*.tsbuildinfo
 
 # Database
 *.db
 *.sqlite
+*.db-wal
+*.db-shm
 .setup-complete
 
 # IDE
@@ -33,3 +36,7 @@ backend/.env
 # Backup / Temp
 *.bak
 *~
+*.log
+
+# Uploads (runtime data)
+uploads/
