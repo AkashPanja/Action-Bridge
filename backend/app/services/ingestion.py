@@ -111,9 +111,19 @@ def _pdf_text(path: Path) -> tuple[str, str]:
         pages = [page.get_text().strip() for page in doc]
     finally:
         doc.close()
-    joined = "\n\n".join(pages).strip()
-    if not joined:
+    non_empty = [(i + 1, text) for i, text in enumerate(pages) if text]
+    if not non_empty:
         return "", "scanned"
+    if len(non_empty) == 1:
+        joined = non_empty[0][1]
+    else:
+        # Multi-page: mark page boundaries so the model can follow tables
+        # continued across pages and ignore repeated headers/footers.
+        total = len(pages)
+        joined = "\n\n".join(
+            f"=== PAGE {num} of {total} ===\n{text}" for num, text in non_empty
+        )
+    joined = joined.strip()
     per_page = len(joined) / max(len(pages), 1)
     if per_page < MIN_PDF_CHARS_PER_PAGE:
         return "", "scanned"

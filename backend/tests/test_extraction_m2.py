@@ -973,7 +973,6 @@ class TestMinScore:
         from app.services.pipeline import _min_score
 
         assert _min_score({"a": 0.95, "b": 0.99}) == 0.95
-
     async def test_nested_and_tables(self):
         from app.services.pipeline import _min_score
 
@@ -1228,3 +1227,104 @@ class TestPipelineRobustness:
         await db_session.refresh(job)
         assert job.status == "failed"
         assert "signing secret" in (job.error or "")
+
+
+class TestMultipagePdf:
+    async def test_page_markers_on_multipage(self, tmp_path, monkeypatch):
+        import pymupdf
+
+        from app.services import ingestion
+
+        monkeypatch.setattr(ingestion.settings, "file_store_dir", str(tmp_path))
+        doc = pymupdf.open()
+        for i in range(3):
+            page = doc.new_page()
+            page.insert_text((72, 72), f"Content of page {i + 1} with plenty of words " * 10)
+        raw = doc.tobytes()
+        doc.close()
+        rec = ingestion.store_upload("multi.pdf", raw, "sub1")
+        text, source, _ = ingestion.acquire_text(rec["storage_path"], rec["mime"])
+        assert source == "pdf_text"
+        assert "=== PAGE 1 of 3 ===" in text
+        assert "=== PAGE 3 of 3 ===" in text
+
+    async def test_single_page_has_no_markers(self, tmp_path, monkeypatch):
+        from app.services import ingestion
+
+        monkeypatch.setattr(ingestion.settings, "file_store_dir", str(tmp_path))
+        raw = make_pdf(["Invoice INV-001", "Total 1500"])
+        rec = ingestion.store_upload("single.pdf", raw, "sub1")
+        text, source, _ = ingestion.acquire_text(rec["storage_path"], rec["mime"])
+        assert source == "pdf_text"
+        assert "=== PAGE" not in text
+        assert "INV-001" in text
+
+
+class TestPromptTemplates:
+    async def test_builtin_library(self, client: AsyncClient, admin_headers):
+        resp = await client.get("/api/v1/prompt-templates/built-in", headers=admin_headers)
+        assert resp.status_code == 200
+        templates = resp.json()
+        ids = {t["id"] for t in templates}
+        assert {"builtin:invoice", "builtin:purchase_order", "builtin:grn", "builtin:receipt"} <= ids
+        for t in templates:
+            assert t["name"] and t["prompts"].get("extraction")
+            assert "{schema}" in t["prompts"]["extraction"]
+            assert "{text}" in t["prompts"]["extraction"]
+
+    async def test_crud_and_sharing(self, client: AsyncClient, admin_headers):
+        pid_a = await create_project(client, admin_headers, name="ProjA")
+        pid_b = await create_project(client, admin_headers, name="ProjB")
+
+        created = (await client.post(
+            f"/api/v1/projects/{pid_a}/prompt-templates", headers=admin_headers, json={
+                "name": "My invoice tweaks",
+                "prompts": {"extraction": "Custom {schema} {text}"},
+                "is_shared": False,
+            })).json()
+        assert created["id"]
+        assert created["is_shared"] is False
+
+        # Private: not visible from the other project.
+        other = (await client.get(f"/api/v1/projects/{pid_b}/prompt-templates", headers=admin_headers)).json()
+        assert all(t["id"] != created["id"] for t in other)
+
+        # Share it: visible everywhere, original untouched.
+        await client.patch(
+            f"/api/v1/projects/{pid_a}/prompt-templates/{created['id']}",
+            headers=admin_headers, json={"is_shared": True})
+        other = (await client.get(f"/api/v1/projects/{pid_b}/prompt-templates", headers=admin_headers)).json()
+        assert any(t["id"] == created["id"] and t["is_shared"] for t in other)
+
+        # Fetch single shared template cross-project.
+        single = (await client.get(
+            f"/api/v1/projects/{pid_b}/prompt-templates/{created['id']}",
+            headers=admin_headers)).json()
+        assert single["prompts"]["extraction"] == "Custom {schema} {text}"
+
+        # Built-in fetch by id.
+        builtin = (await client.get(
+            f"/api/v1/projects/{pid_a}/prompt-templates/builtin:grn",
+            headers=admin_headers)).json()
+        assert builtin["builtin"] is True
+        assert "GRN" in builtin["name"] or "grn" in builtin["id"]
+
+        # Delete from owner project.
+        resp = await client.delete(
+            f"/api/v1/projects/{pid_a}/prompt-templates/{created['id']}",
+            headers=admin_headers)
+        assert resp.status_code == 204
+
+    async def test_empty_prompts_rejected(self, client: AsyncClient, admin_headers):
+        pid = await create_project(client, admin_headers)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/prompt-templates", headers=admin_headers,
+            json={"name": "Empty", "prompts": {}})
+        assert resp.status_code == 400
+
+    async def test_viewer_forbidden(self, client: AsyncClient, admin_headers, viewer_headers):
+        pid = await create_project(client, admin_headers)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/prompt-templates", headers=viewer_headers,
+            json={"name": "X", "prompts": {"extraction": "hi"}})
+        assert resp.status_code == 403

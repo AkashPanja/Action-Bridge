@@ -1,13 +1,20 @@
-import { FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
+import { FlaskConical, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Dialog } from "../../components/ui/Dialog";
 import { Input } from "../../components/ui/Input";
 import { useDocumentTypes } from "../../hooks/useDocumentTypes";
-import { useProfileMutations, useProfiles, useProviders } from "../../hooks/useExtraction";
+import {
+  useBuiltinPromptTemplates,
+  useProfileMutations,
+  useProfiles,
+  usePromptTemplateMutations,
+  usePromptTemplates,
+  useProviders,
+} from "../../hooks/useExtraction";
 import { api } from "../../lib/api";
-import type { ExtractionProfile, PlaygroundResult } from "../../types/extraction";
+import type { ExtractionProfile, PlaygroundResult, PromptTemplate } from "../../types/extraction";
 import { cn } from "../../lib/utils";
 
 interface Candidate {
@@ -34,11 +41,17 @@ export function ProfilesPage({ projectId }: { projectId: string }) {
   const { data: docTypes } = useDocumentTypes(projectId);
   const { data: providers } = useProviders();
   const mut = useProfileMutations(projectId);
+  const { data: builtinTemplates } = useBuiltinPromptTemplates();
+  const { data: savedTemplates } = usePromptTemplates(projectId);
+  const templateMut = usePromptTemplateMutations(projectId);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ExtractionProfile | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [error, setError] = useState("");
+  const [templateName, setTemplateName] = useState("");
+  const [templateShared, setTemplateShared] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
 
   const [pgText, setPgText] = useState("");
   const [pgFile, setPgFile] = useState<File | null>(null);
@@ -53,6 +66,9 @@ export function ProfilesPage({ projectId }: { projectId: string }) {
   function openCreate() {
     setEditing(null);
     setForm({ ...EMPTY_FORM });
+    setTemplateName("");
+    setTemplateShared(false);
+    setTemplateSaved(false);
     setPgText("");
     setPgFile(null);
     setPgResult(null);
@@ -62,6 +78,9 @@ export function ProfilesPage({ projectId }: { projectId: string }) {
 
   function openEdit(p: ExtractionProfile) {
     setEditing(p);
+    setTemplateName("");
+    setTemplateShared(false);
+    setTemplateSaved(false);
     setForm({
       name: p.name,
       mode: p.mode,
@@ -110,6 +129,42 @@ export function ProfilesPage({ projectId }: { projectId: string }) {
       ...f,
       chain: f.chain.includes(id) ? f.chain.filter((x) => x !== id) : [...f.chain, id],
     }));
+  }
+
+  function applyTemplate(template: PromptTemplate) {
+    const prompts = template.prompts ?? {};
+    setForm((f) => ({
+      ...f,
+      system: typeof prompts.system === "string" ? prompts.system : f.system,
+      extraction: typeof prompts.extraction === "string" ? prompts.extraction : f.extraction,
+      classification: typeof prompts.classification === "string" ? prompts.classification : f.classification,
+    }));
+    setTemplateSaved(false);
+    setError("");
+  }
+
+  async function handleSaveTemplate() {
+    setError("");
+    if (!templateName.trim()) {
+      setError("Give the template a name first");
+      return;
+    }
+    try {
+      await templateMut.create.mutateAsync({
+        name: templateName.trim(),
+        prompts: {
+          ...(form.system ? { system: form.system } : {}),
+          ...(form.extraction ? { extraction: form.extraction } : {}),
+          ...(form.classification ? { classification: form.classification } : {}),
+        },
+        is_shared: templateShared,
+      });
+      setTemplateName("");
+      setTemplateShared(false);
+      setTemplateSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    }
   }
 
   async function handleSave() {
@@ -296,6 +351,32 @@ export function ProfilesPage({ projectId }: { projectId: string }) {
 
           <div className="space-y-3">
             <p className="text-sm font-medium text-surface-700 dark:text-surface-300">Prompts (blank = built-in defaults)</p>
+            <div>
+              <p className="mb-2 text-xs text-surface-400">Start from a template — click to fill the boxes below, then modify freely. Your edits never change the template.</p>
+              <div className="flex flex-wrap gap-2">
+                {(builtinTemplates ?? []).map((t) => (
+                  <button key={t.id} type="button" onClick={() => applyTemplate(t)} title={t.description ?? t.name}
+                    className="rounded-lg bg-brand-100 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-200 dark:bg-brand-900/30 dark:text-brand-300">
+                    {t.name}
+                  </button>
+                ))}
+                {(savedTemplates ?? []).map((t) => (
+                  <span key={t.id} className="flex items-center gap-1 rounded-lg bg-surface-100 px-2 py-1 text-xs dark:bg-surface-700">
+                    <button type="button" onClick={() => applyTemplate(t)} title={t.description ?? t.name}
+                      className="font-medium text-surface-600 hover:text-brand-600 dark:text-surface-300">
+                      {t.name}{t.is_shared ? " (shared)" : ""}
+                    </button>
+                    {!t.builtin && (t.project_id === projectId) ? (
+                      <button type="button" title="Delete template"
+                        onClick={() => templateMut.remove.mutate(t.id)}
+                        className="rounded p-0.5 text-surface-400 hover:text-accent-500">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    ) : null}
+                  </span>
+                ))}
+              </div>
+            </div>
             {(["system", "extraction", "classification"] as const).map((k) => (
               <div key={k}>
                 <label className="text-xs font-medium capitalize text-surface-500">{k}</label>
@@ -304,6 +385,24 @@ export function ProfilesPage({ projectId }: { projectId: string }) {
                   className="mt-1 w-full rounded-xl border border-transparent bg-surface-100 px-4 py-3 font-mono text-xs dark:bg-surface-800" />
               </div>
             ))}
+            <div className="rounded-xl bg-surface-100/70 p-3 dark:bg-surface-800/60">
+              <div className="flex flex-wrap items-center gap-2">
+                <Input label="" value={templateName} onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="Save current prompts as template…" />
+                <label className="flex items-center gap-1.5 text-xs text-surface-500">
+                  <input type="checkbox" checked={templateShared} onChange={(e) => setTemplateShared(e.target.checked)}
+                    className="rounded border-surface-300 text-brand-600 focus:ring-brand-500" />
+                  Share with all projects
+                </label>
+                <Button size="sm" variant="outline" onClick={handleSaveTemplate}
+                  isLoading={templateMut.create.isPending}>
+                  <Save className="h-3.5 w-3.5" /> Save template
+                </Button>
+              </div>
+              {templateSaved ? (
+                <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">Template saved — find it above next time.</p>
+              ) : null}
+            </div>
           </div>
 
           {editing ? (

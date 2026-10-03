@@ -5,6 +5,7 @@ import type {
   Job,
   PlaygroundResult,
   ProcessingSettings,
+  PromptTemplate,
   Provider,
   ProviderPreset,
   ProviderTestResult,
@@ -189,8 +190,7 @@ export const api = {
   },
   profiles: {
     list: (projectId: string) =>
-      request<ExtractionProfile[]>(`/projects/${projectId}/profiles`),
-    create: (projectId: string, data: Record<string, unknown>) =>
+      request<ExtractionProfile[]>(`/projects/${projectId}/profiles`),    create: (projectId: string, data: Record<string, unknown>) =>
       request<ExtractionProfile>(`/projects/${projectId}/profiles`, {
         method: "POST",
         body: JSON.stringify(data),
@@ -208,6 +208,23 @@ export const api = {
         headers: {},
         body: form,
       }),
+  },
+  promptTemplates: {
+    builtIn: () => request<PromptTemplate[]>(`/prompt-templates/built-in`),
+    list: (projectId: string) =>
+      request<PromptTemplate[]>(`/projects/${projectId}/prompt-templates`),
+    create: (projectId: string, data: Record<string, unknown>) =>
+      request<PromptTemplate>(`/projects/${projectId}/prompt-templates`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (projectId: string, id: string, data: Record<string, unknown>) =>
+      request<PromptTemplate>(`/projects/${projectId}/prompt-templates/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    remove: (projectId: string, id: string) =>
+      request<void>(`/projects/${projectId}/prompt-templates/${id}`, { method: "DELETE" }),
   },
   extract: {
     upload: (projectId: string, form: FormData) =>

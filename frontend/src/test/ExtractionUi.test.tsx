@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { JobsPage } from "../pages/extraction/JobsPage";
+import { ProfilesPage } from "../pages/extraction/ProfilesPage";
 import { ProvidersPage } from "../pages/extraction/ProvidersPage";
 import { UploadModal } from "../components/extraction/UploadModal";
 
@@ -23,6 +24,11 @@ vi.mock("../hooks/useExtraction", () => ({
   useProjectJobs: () => ({ data: { total: 2, jobs: JOBS }, isLoading: false }),
   useJobMutations: () => ({ retry: { mutate: retry }, cancel: { mutate: cancel } }),
   useProfiles: () => ({ data: [] }),
+  useProfileMutations: () => ({
+    create: { mutateAsync: vi.fn(), isPending: false },
+    update: { mutateAsync: vi.fn(), isPending: false },
+    remove: { mutate: vi.fn() },
+  }),
   useProviders: () => ({ data: [] }),
   useProviderPresets: () => ({ data: PRESETS }),
   useCredentials: () => ({ data: [] }),
@@ -33,6 +39,13 @@ vi.mock("../hooks/useExtraction", () => ({
   }),
   useCredentialMutations: () => ({
     create: { mutateAsync: vi.fn(), isPending: false },
+  }),
+  useBuiltinPromptTemplates: () => ({ data: BUILTIN_TEMPLATES }),
+  usePromptTemplates: () => ({ data: SAVED_TEMPLATES }),
+  usePromptTemplateMutations: () => ({
+    create: { mutateAsync: vi.fn(), isPending: false },
+    update: { mutateAsync: vi.fn(), isPending: false },
+    remove: { mutate: vi.fn() },
   }),
 }));
 
@@ -102,5 +115,40 @@ describe("ProvidersPage gallery", () => {
     fireEvent.click(screen.getByText("OpenAI"));
     expect(screen.getByText("Add OpenAI")).toBeInTheDocument();
     expect(screen.getByDisplayValue("gpt-4o-mini")).toBeInTheDocument();
+  });
+});
+
+const BUILTIN_TEMPLATES = [
+  {
+    id: "builtin:invoice", name: "Invoice", description: "Bills",
+    prompts: { system: "SYS-INV", extraction: "EXT-INV {schema} {text}", classification: "CLS-INV" },
+    is_shared: false, builtin: true, project_id: null,
+  },
+];
+
+const SAVED_TEMPLATES = [
+  {
+    id: "t1", name: "My tweaks", description: null,
+    prompts: { extraction: "EXT-MINE {schema} {text}" },
+    is_shared: true, builtin: false, project_id: "p1",
+  },
+];
+
+describe("ProfilesPage template gallery", () => {
+  it("applies a built-in template into the form without touching the template", () => {
+    render(<ProfilesPage projectId="p1" />);
+    fireEvent.click(screen.getByText("New Profile"));
+    fireEvent.click(screen.getByText("Invoice"));
+    const boxes = screen.getAllByRole("textbox");
+    const values = boxes.map((b) => (b as HTMLTextAreaElement).value);
+    expect(values).toContain("EXT-INV {schema} {text}");
+    // built-in stays intact: gallery still shows it and form is independent
+    expect(screen.getByText("Invoice")).toBeInTheDocument();
+  });
+
+  it("lists saved and shared templates", () => {
+    render(<ProfilesPage projectId="p1" />);
+    fireEvent.click(screen.getByText("New Profile"));
+    expect(screen.getByText("My tweaks (shared)")).toBeInTheDocument();
   });
 });

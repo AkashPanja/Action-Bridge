@@ -19,6 +19,7 @@ from .job import Job
 from .provider_call import ProviderCall
 from .extraction_profile import ExtractionProfile
 from .submission import Submission, SubmissionFile
+from .prompt_template import PromptTemplate
 
 __all__ = [
     "Base", "Project", "ProjectMembership", "DocumentType",
@@ -27,5 +28,5 @@ __all__ = [
     "AuditEvent", "AuditLog", "ApiKeyProjectScope",
     "AppSetting", "RegexPattern",
     "Credential", "LlmProvider", "ProcessingSetting", "Job", "ProviderCall",
-    "ExtractionProfile", "Submission", "SubmissionFile",
+    "ExtractionProfile", "Submission", "SubmissionFile", "PromptTemplate",
 ]

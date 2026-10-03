@@ -90,6 +90,16 @@ export interface PlaygroundResult {
   tokens_out?: number | null;
 }
 
+export interface PromptTemplate {
+  id: string;
+  project_id: string | null;
+  name: string;
+  description: string | null;
+  prompts: Record<string, string>;
+  is_shared: boolean;
+  builtin: boolean;
+}
+
 export interface JobFile {
   filename: string;
   status: string;

@@ -23,6 +23,7 @@ from app.routers import (
     processing,
     profiles,
     projects,
+    prompt_templates,
     regex_patterns,
     settings as settings_router,
     submissions,
@@ -75,6 +76,7 @@ app.include_router(credentials.router)
 app.include_router(llm_providers.router)
 app.include_router(processing.router)
 app.include_router(profiles.router)
+app.include_router(prompt_templates.router)
 app.include_router(extract.router)
 app.include_router(submissions.router)
 app.include_router(jobs.router)

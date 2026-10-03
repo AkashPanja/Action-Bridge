@@ -110,3 +110,38 @@ export function useSubmission(id: string | null) {
     enabled: !!id,
   });
 }
+
+export function useBuiltinPromptTemplates() {
+  return useQuery({
+    queryKey: ["prompt-templates", "built-in"],
+    queryFn: api.promptTemplates.builtIn,
+  });
+}
+
+export function usePromptTemplates(projectId: string) {
+  return useQuery({
+    queryKey: ["prompt-templates", projectId],
+    queryFn: () => api.promptTemplates.list(projectId),
+    enabled: !!projectId,
+  });
+}
+
+export function usePromptTemplateMutations(projectId: string) {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["prompt-templates", projectId] });
+  return {
+    create: useMutation({
+      mutationFn: (data: Record<string, unknown>) => api.promptTemplates.create(projectId, data),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+        api.promptTemplates.update(projectId, id, data),
+      onSuccess: invalidate,
+    }),
+    remove: useMutation({
+      mutationFn: (id: string) => api.promptTemplates.remove(projectId, id),
+      onSuccess: invalidate,
+    }),
+  };
+}

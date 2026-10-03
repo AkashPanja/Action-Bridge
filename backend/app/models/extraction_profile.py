@@ -62,7 +62,11 @@ DEFAULT_PROMPTS = {
         "header row and the first summary line (Subtotal, Total, Discount, Shipping, "
         "Tax, Balance). Never create rows from summary, tax, discount, shipping, "
         "category, or notes lines.\n"
-        "6. Output must be parseable JSON: double quotes, no trailing commas, no comments.\n"
+        "6. Multi-page documents: page markers look like === PAGE 2 of 5 ===. "
+        "Line items may continue across pages — merge them, do not duplicate. "
+        "Ignore repeated headers, footers, and page numbers. Totals are usually "
+        "on the last page.\n"
+        "7. Output must be parseable JSON: double quotes, no trailing commas, no comments.\n"
         "DOCUMENT:\n<DOCUMENT>\n{text}\n</DOCUMENT>"
     ),
     "classification": (
