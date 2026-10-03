@@ -38,7 +38,8 @@ async def get_job(
     job = await job_service.get_job(db, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    enriched = await job_service.with_file_summaries(db, [job])
+    return enriched[0]
 
 
 @router.get("/api/v1/projects/{project_id}/jobs", response_model=JobListResponse)
@@ -55,7 +56,7 @@ async def list_project_jobs(
         jobs, total = await job_service.list_jobs(db, project_id, status, kind, limit, offset)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    return {"total": total, "jobs": jobs}
+    return {"total": total, "jobs": await job_service.with_file_summaries(db, jobs)}
 
 
 @router.post("/api/v1/jobs/{job_id}/retry", response_model=JobResponse)

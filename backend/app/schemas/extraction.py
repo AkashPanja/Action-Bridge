@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -122,11 +124,19 @@ class JobEnqueue(BaseModel):
     max_attempts: int = 3
 
 
+class JobFileSummary(BaseModel):
+    filename: str
+    status: str
+    skip_reason: str | None = None
+    document_id: str | None = None
+
+
 class JobResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
     project_id: str | None = None
+    submission_id: str | None = None
     kind: str
     status: str
     attempts: int
@@ -135,6 +145,9 @@ class JobResponse(BaseModel):
     payload: dict = {}
     result: dict | None = None
     usage: dict | None = None
+    created_at: datetime | None = None
+    finished_at: datetime | None = None
+    files: list[JobFileSummary] = []
 
 
 class JobListResponse(BaseModel):

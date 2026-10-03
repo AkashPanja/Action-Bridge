@@ -22,14 +22,25 @@ WEBHOOK_TRIES = 3
 
 # --- Intake ---
 
-async def _sha256_seen(db: AsyncSession, project_id: str, sha256: str) -> bool:
+async def _find_duplicate_doc(db: AsyncSession, project_id: str, sha256: str) -> str | None:
+    """Latest live document already produced from this file hash in this project."""
+    from app.models.document_instance import DocumentInstance
+
     result = await db.execute(
-        select(SubmissionFile.id)
+        select(SubmissionFile.document_id)
         .join(Submission, Submission.id == SubmissionFile.submission_id)
-        .where(Submission.project_id == project_id, SubmissionFile.sha256 == sha256)
+        .join(DocumentInstance, DocumentInstance.id == SubmissionFile.document_id)
+        .where(
+            Submission.project_id == project_id,
+            SubmissionFile.sha256 == sha256,
+            SubmissionFile.document_id.is_not(None),
+            DocumentInstance.is_deleted == False,
+        )
+        .order_by(SubmissionFile.created_at.desc())
         .limit(1)
     )
-    return result.first() is not None
+    row = result.first()
+    return row[0] if row else None
 
 
 async def intake_files(
@@ -65,11 +76,14 @@ async def intake_files(
     for filename, content in files:
         record = ingestion.store_upload(filename, content, submission.id)
         accepted, reason = ingestion.filter_file(record["filename"], record["size"], max_mb)
-        status, skip_reason = "pending", None
+        status, skip_reason, linked_doc = "pending", None, None
         if not accepted:
             status, skip_reason = "skipped", reason
-        elif await _sha256_seen(db, project_id, record["sha256"]):
-            status, skip_reason = "duplicate", "duplicate file"
+        else:
+            linked_doc = await _find_duplicate_doc(db, project_id, record["sha256"])
+            if linked_doc:
+                status = "duplicate"
+                skip_reason = "duplicate file — already processed, see linked document"
         db.add(SubmissionFile(
             submission_id=submission.id,
             filename=record["filename"],
@@ -79,6 +93,7 @@ async def intake_files(
             storage_path=record["storage_path"],
             status=status,
             skip_reason=skip_reason,
+            document_id=linked_doc,
         ))
     # Stash the requested type for auto mode (not a column; carried via note-free path).
     if document_type_id and not profile_id:

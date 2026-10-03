@@ -90,9 +90,17 @@ export interface PlaygroundResult {
   tokens_out?: number | null;
 }
 
+export interface JobFile {
+  filename: string;
+  status: string;
+  skip_reason: string | null;
+  document_id: string | null;
+}
+
 export interface Job {
   id: string;
   project_id: string | null;
+  submission_id: string | null;
   kind: string;
   status: string;
   attempts: number;
@@ -101,6 +109,9 @@ export interface Job {
   payload: Record<string, unknown>;
   result: Record<string, unknown> | null;
   usage: Record<string, unknown> | null;
+  created_at: string | null;
+  finished_at: string | null;
+  files: JobFile[];
 }
 
 export interface SubmissionFile {

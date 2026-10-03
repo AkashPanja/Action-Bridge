@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal, engine
 from app.models.job import JOB_STATUSES, Job
+from app.models.submission import SubmissionFile
 
 HANDLERS: dict[str, object] = {}
 
@@ -25,6 +26,44 @@ async def _ping_handler(db: AsyncSession, job: Job):
 
 
 register_kind("ping", _ping_handler)
+
+
+async def with_file_summaries(db: AsyncSession, jobs: list[Job]) -> list[dict]:
+    """Attach per-file outcomes to jobs (single batched query)."""
+    sub_ids = [j.submission_id for j in jobs if j.submission_id]
+    files_by_sub: dict[str, list] = {}
+    if sub_ids:
+        rows = (await db.execute(
+            select(SubmissionFile)
+            .where(SubmissionFile.submission_id.in_(sub_ids))
+            .order_by(SubmissionFile.created_at.asc())
+        )).scalars().all()
+        for f in rows:
+            files_by_sub.setdefault(f.submission_id, []).append({
+                "filename": f.filename,
+                "status": f.status,
+                "skip_reason": f.skip_reason,
+                "document_id": f.document_id,
+            })
+    out = []
+    for job in jobs:
+        out.append({
+            "id": job.id,
+            "project_id": job.project_id,
+            "submission_id": job.submission_id,
+            "kind": job.kind,
+            "status": job.status,
+            "attempts": job.attempts,
+            "error": job.error,
+            "provider_id": job.provider_id,
+            "payload": job.payload or {},
+            "result": job.result,
+            "usage": job.usage,
+            "created_at": job.created_at.isoformat() if job.created_at else None,
+            "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+            "files": files_by_sub.get(job.submission_id or "", []),
+        })
+    return out
 
 
 def _utcnow() -> datetime:

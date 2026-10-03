@@ -595,6 +595,61 @@ class TestSubmissions:
         })
         assert resp.status_code in (400, 403)
 
+    async def test_duplicate_links_existing_document(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        await create_profile(client, admin_headers, pid, tid, prov)
+        patch_adapter(monkeypatch, [INVOICE_JSON])
+        body = {
+            "document_type_id": tid,
+            "files": [{"filename": "inv.txt", "content_base64": b64(INVOICE_TEXT.encode())}],
+        }
+
+        first = (await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json=body)).json()
+        await run_claimed_job(first["job_id"], db_session)
+        first_sub = (await client.get(f"/api/v1/submissions/{first['submission_id']}", headers=admin_headers)).json()
+        first_doc = first_sub["files"][0]["document_id"]
+        assert first_doc
+
+        second = (await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json=body)).json()
+        await run_claimed_job(second["job_id"], db_session)
+        sub = (await client.get(f"/api/v1/submissions/{second['submission_id']}", headers=admin_headers)).json()
+        assert sub["files"][0]["status"] == "duplicate"
+        assert sub["files"][0]["document_id"] == first_doc
+
+    async def test_job_list_enriched_with_files(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        await create_profile(client, admin_headers, pid, tid, prov)
+        patch_adapter(monkeypatch, [INVOICE_JSON])
+
+        resp = await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json={
+            "document_type_id": tid,
+            "files": [{"filename": "inv.txt", "content_base64": b64(INVOICE_TEXT.encode())}],
+        })
+        job_id = resp.json()["job_id"]
+        await run_claimed_job(job_id, db_session)
+
+        listed = (await client.get(f"/api/v1/projects/{pid}/jobs", headers=admin_headers)).json()
+        assert listed["total"] == 1
+        job = listed["jobs"][0]
+        assert job["submission_id"]
+        assert job["created_at"]
+        assert len(job["files"]) == 1
+        assert job["files"][0]["filename"] == "inv.txt"
+        assert job["files"][0]["status"] == "extracted"
+        assert job["files"][0]["document_id"]
+
+        single = (await client.get(f"/api/v1/jobs/{job_id}", headers=admin_headers)).json()
+        assert single["finished_at"]
+        assert single["files"][0]["filename"] == "inv.txt"
+
 
 # --- Webhooks ---
 
