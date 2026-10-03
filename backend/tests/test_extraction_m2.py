@@ -28,10 +28,16 @@ async def create_project(client, headers, name="ExtractProj"):
     return resp.json()["id"]
 
 
-async def create_doc_type(client, headers, project_id, name="Invoice", schema=None):
+async def create_doc_type(client, headers, project_id, name="Invoice", schema=None, validation_rules=None):
+    data = {
+        "name": name,
+        "schema_definition": schema or INVOICE_SCHEMA,
+    }
+    if validation_rules:
+        data["validation_rules"] = validation_rules
     resp = await client.post(
         f"/api/v1/projects/{project_id}/document-types", headers=headers,
-        json={"name": name, "schema_definition": schema or INVOICE_SCHEMA},
+        json=data,
     )
     assert resp.status_code in (200, 201), resp.text
     return resp.json()["id"]
@@ -312,7 +318,7 @@ async def run_claimed_job(job_id, db_session):
 
 
 class TestExtract:
-    async def test_json_upload_to_pending_review(
+    async def test_high_score_auto_approves(
         self, client: AsyncClient, admin_headers, db_session, monkeypatch
     ):
         pid = await create_project(client, admin_headers)
@@ -332,7 +338,7 @@ class TestExtract:
 
         docs = (await client.get(
             f"/api/v1/projects/{pid}/documents", headers=admin_headers,
-            params={"status": "pending_review"},
+            params={"status": "approved"},
         )).json()
         assert len(docs) == 1
         doc = docs[0]
@@ -340,6 +346,78 @@ class TestExtract:
         assert doc["submission_id"]
         assert doc["source"] in ("upload", "api")
         assert doc["extraction_meta"]["model"] == "test-model"
+        assert doc["extraction_meta"]["auto_approved"] is True
+
+    async def test_low_score_stays_pending(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        await create_profile(client, admin_headers, pid, tid, prov)
+        patch_adapter(monkeypatch, ['{"invoice_number": "ZZZ-9", "total_amount": 1, "vendor": "Nope"}'])
+
+        resp = await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json={
+            "document_type_id": tid,
+            "files": [{"filename": "inv.txt", "content_base64": b64(b"unrelated words here")}],
+        })
+        await run_claimed_job(resp.json()["job_id"], db_session)
+
+        docs = (await client.get(
+            f"/api/v1/projects/{pid}/documents", headers=admin_headers,
+            params={"status": "pending_review"},
+        )).json()
+        assert len(docs) == 1
+        assert docs[0]["extraction_meta"]["auto_approved"] is False
+
+    async def test_threshold_zero_disables_auto_approve(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        await client.put("/api/v1/settings/processing", headers=admin_headers,
+                         json={"auto_approve_threshold": 0})
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        await create_profile(client, admin_headers, pid, tid, prov)
+        patch_adapter(monkeypatch, [INVOICE_JSON])
+
+        resp = await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json={
+            "document_type_id": tid,
+            "files": [{"filename": "inv.txt", "content_base64": b64(INVOICE_TEXT.encode())}],
+        })
+        await run_claimed_job(resp.json()["job_id"], db_session)
+
+        docs = (await client.get(
+            f"/api/v1/projects/{pid}/documents", headers=admin_headers,
+            params={"status": "pending_review"},
+        )).json()
+        assert len(docs) == 1
+
+    async def test_pattern_violation_warns_and_holds(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(
+            client, admin_headers, pid,
+            validation_rules={"invoice_number": {"pattern": "^INV-"}},
+        )
+        prov = await create_provider(client, admin_headers)
+        await create_profile(client, admin_headers, pid, tid, prov)
+        patch_adapter(monkeypatch, ['{"invoice_number": "XYZ", "total_amount": 1500, "vendor": "Acme Corp"}'])
+
+        resp = await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json={
+            "document_type_id": tid,
+            "files": [{"filename": "inv.txt", "content_base64": b64(INVOICE_TEXT.encode())}],
+        })
+        await run_claimed_job(resp.json()["job_id"], db_session)
+
+        docs = (await client.get(
+            f"/api/v1/projects/{pid}/documents", headers=admin_headers,
+            params={"status": "pending_review"},
+        )).json()
+        assert len(docs) == 1
+        issues = docs[0]["extraction_meta"].get("validation_issues", [])
+        assert any("invoice_number" in i and "pattern" in i for i in issues)
 
     async def test_idempotent(self, client: AsyncClient, admin_headers, db_session, monkeypatch):
         pid = await create_project(client, admin_headers)
@@ -768,6 +846,26 @@ class TestRowVerification:
         _, warnings = verify_table_rows(data, XYLONA_TEXT, scores)
         assert warnings == []
 
+    async def test_pair_totals_unwrapped(self):
+        from app.services.extraction import verify_table_rows
+
+        data = {
+            "subtotal": {"value": 6118.14, "confidence": 1.0},
+            "total_amount": {"value": 6208.84, "confidence": 1.0},
+            "items": [
+                {"description": "Bookrack", "quantity": 7,
+                 "unit_price": 874.02, "line_total": 6118.14},
+                {"description": "Category", "quantity": 1,
+                 "unit_price": 6118.14, "line_total": 6208.84},
+            ],
+        }
+        scores = {"subtotal": 0.95, "total_amount": 0.95, "items": [
+            {"description": 0.95, "quantity": 0.95, "unit_price": 0.95, "line_total": 0.95},
+            {"description": 0.95, "quantity": 0.95, "unit_price": 0.95, "line_total": 0.95},
+        ]}
+        _, warnings = verify_table_rows(data, XYLONA_TEXT, scores)
+        assert any("rows sum to" in w for w in warnings)
+
     async def test_end_to_end_warnings_in_meta(
         self, client: AsyncClient, admin_headers, db_session, monkeypatch
     ):
@@ -787,3 +885,37 @@ class TestRowVerification:
         assert any("Row 2" in w for w in result.meta.get("warnings", []))
         assert any("Row 3" in w for w in result.meta.get("warnings", []))
         assert result.scores["items"][2]["item"] == 0.3
+
+
+class TestMinScore:
+    async def test_flat(self):
+        from app.services.pipeline import _min_score
+
+        assert _min_score({"a": 0.95, "b": 0.99}) == 0.95
+
+    async def test_nested_and_tables(self):
+        from app.services.pipeline import _min_score
+
+        assert _min_score({
+            "a": 0.95,
+            "nested": 0.8,
+            "table": [{"x": 0.9, "y": 0.5}, {"x": 0.99}],
+        }) == 0.5
+
+    async def test_empty(self):
+        from app.services.pipeline import _min_score
+
+        assert _min_score({}) is None
+        assert _min_score({"a": []}) is None
+
+    async def test_ignores_non_numeric(self):
+        from app.services.pipeline import _min_score
+
+        assert _min_score({"a": "x", "b": True, "c": 0.93}) == 0.93
+
+    async def test_ignores_bookkeeping_keys(self):
+        from app.services.pipeline import _min_score
+
+        assert _min_score({"overall_confidence": 0.2, "warnings": [{"value": 0.1}],
+                           "total_amount": 0.95}) == 0.95
+        assert _min_score({"overall_confidence": 0.2}) is None

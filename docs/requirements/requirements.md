@@ -63,7 +63,7 @@ The model layer is pluggable: a local model by default, cloud models when the us
 
 ### B3. Out of scope for this iteration
 
-Local OCR models (WeVisDoc, GLM-OCR, PaddleOCR-VL), specialist extractors (NuExtract, LFM2-Extract), the Laya classifier, page-level splitting of mixed PDFs, 3-way matching logic outside prompts, auto-approval, bounding-box highlighting. Interfaces must allow adding these later without rewrites (FR-1.4).
+Local OCR models (WeVisDoc, GLM-OCR, PaddleOCR-VL), specialist extractors (NuExtract, LFM2-Extract), the Laya classifier, page-level splitting of mixed PDFs, 3-way matching logic outside prompts, bounding-box highlighting. Interfaces must allow adding these later without rewrites (FR-1.4).
 
 ### B4. Pipeline overview
 
@@ -178,6 +178,7 @@ A **Trigger** watches one mailbox. Multiple triggers/mailboxes supported. All �
 
 - **FR-8.1** Create through existing `submit_document()` — lifecycle, audit, notifications, RBAC unchanged; no duplicated logic. 🔲 Pending (M2)
 - **FR-8.1a** Force `pending_review` for extractor-created documents (skip auto-approve when `actor="extractor"`). Code-verified: clean docs otherwise auto-approve and bypass humans. 🔲 Pending (M2)
+- **FR-8.1b** Auto-approve on high confidence: when every field scores at or above `auto_approve_threshold` (global processing setting, default **0.92**, 0 disables), extractor documents take the normal auto-approve path. Validation/schema issues always route to humans regardless of scores. ✅ Done
 - **FR-8.2** Extractor supplies `extracted_data` + grounding signals; existing confidence logic scores. Signal→number mapping table (configurable; defaults: found = high, not found = low, retry = reduced — owner to tune). Code-verified mandatory: `submit_document()` rejects non-numeric/missing scores. 🔲 Pending (M2)
 - **FR-8.3** Store per document: submission id, source, model/provider, prompt version, token usage, processing time, grounding signals (`extraction_meta`). 🔲 Pending (M2; needs migration adding nullable `submission_id`, `source`, `extraction_meta` to `documents`)
 - **FR-8.4** Original-file viewer (PDF/image preview + download) beside extracted fields. Code-verified: links exist, inline preview does not — build it. 🔲 Pending (M2)

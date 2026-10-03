@@ -146,6 +146,29 @@ def _synthetic_profile(doc_type: DocumentType, providers: list[LlmProvider]) -> 
 
 # --- Document hand-off ---
 
+def _min_score(scores: dict) -> float | None:
+    """Lowest numeric score across fields and table cells (None when empty).
+
+    Bookkeeping keys (overall_confidence, warnings) are metadata about the
+    extraction, not document facts — grounding them is meaningless, so they
+    don't count toward the auto-approve decision (their scores are still
+    stored for display).
+    """
+    ignored = {"overall_confidence", "warnings"}
+    flat: list[float] = []
+    for key, value in (scores or {}).items():
+        if key in ignored:
+            continue
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            flat.append(float(value))
+        elif isinstance(value, list):
+            for row in value:
+                if isinstance(row, dict):
+                    flat.extend(float(v) for v in row.values()
+                                if isinstance(v, (int, float)) and not isinstance(v, bool))
+    return min(flat) if flat else None
+
+
 async def _submit_extracted(
     db: AsyncSession,
     project_id: str,
@@ -157,9 +180,20 @@ async def _submit_extracted(
     submission: Submission,
     actor: str,
 ) -> str:
+    from app.services import processing_service
+
+    settings = await processing_service.get_settings(db)
+    try:
+        threshold = float(settings.get("auto_approve_threshold", 0.92))
+    except (TypeError, ValueError):
+        threshold = 0.92
+    lowest = _min_score(scores)
+    # FR-8.1b: high-confidence extractions skip forced review. Empty scores
+    # (manual entry), failing threshold, or validation issues still route to humans.
+    force_review = lowest is None or threshold <= 0 or lowest < threshold
     result = await document_service.submit_document(
         db, project_id, doc_type.id, data, scores, actor,
-        force_pending_review=True,
+        force_pending_review=force_review,
     )
     if isinstance(result, str):
         raise ExtractionFailed(f"Review hand-off rejected: {result}", reason="handoff_rejected")
@@ -174,6 +208,9 @@ async def _submit_extracted(
         "tokens_out": meta.get("tokens_out"),
         "latency_ms": meta.get("latency_ms"),
         "retries": meta.get("retries", 0),
+        "min_score": lowest,
+        "auto_approve_threshold": threshold,
+        "auto_approved": result.status == "approved",
     }
     if meta.get("warnings"):
         result.extraction_meta["warnings"] = meta["warnings"]
@@ -183,7 +220,35 @@ async def _submit_extracted(
         result.extraction_meta["overall_confidence"] = meta["overall_confidence"]
     await db.commit()
     await db.refresh(result)
+    # Surface schema/validation-rule violations from the hand-off as warnings
+    # so reviewers see pattern failures next to the fields.
+    issues = await _handoff_issues(db, result.id)
+    if issues:
+        result.extraction_meta = {**(result.extraction_meta or {}), "validation_issues": issues}
+        await db.commit()
+        await db.refresh(result)
     return result.id
+
+
+async def _handoff_issues(db: AsyncSession, document_id: str) -> list[str]:
+    """Parse the hand-off audit comment for validation issues (read-only)."""
+    from sqlalchemy import select as _select
+
+    from app.models.audit_event import AuditEvent
+
+    events = (await db.execute(
+        _select(AuditEvent)
+        .where(AuditEvent.document_id == document_id, AuditEvent.action == "STATUS_CHANGED")
+        .order_by(AuditEvent.timestamp.desc())
+        .limit(1)
+    )).scalars().all()
+    if not events:
+        return []
+    comment = events[0].comment or ""
+    prefix = "Validation issues: "
+    if not comment.startswith(prefix):
+        return []
+    return [issue.strip() for issue in comment[len(prefix):].split(";") if issue.strip()]
 
 
 async def _manual_entry_doc(

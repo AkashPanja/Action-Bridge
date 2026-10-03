@@ -280,6 +280,13 @@ def _is_confidence_pair(value: object) -> bool:
     )
 
 
+def _raw_value(value: object) -> object:
+    """Unwrap a {value, confidence} pair to its inner value (one level)."""
+    if _is_confidence_pair(value):
+        return value.get("value")
+    return value
+
+
 def _pair_signal(value: dict, text_norm: str, text_raw_lower: str) -> dict:
     return {
         "pair": True,
@@ -537,11 +544,11 @@ def verify_table_rows(data: dict, text: str, scores: dict) -> tuple[dict, list[s
 
             if body and summary:
                 distinctive = [
-                    str(v) for v in row.values()
-                    if isinstance(v, str) and len(v.strip()) > 2
+                    str(_raw_value(v)) for v in row.values()
+                    if isinstance(_raw_value(v), str) and len(str(_raw_value(v)).strip()) > 2
                 ] + [
-                    str(v) for v in row.values()
-                    if isinstance(v, (int, float)) and not isinstance(v, bool)
+                    str(_raw_value(v)) for v in row.values()
+                    if isinstance(_raw_value(v), (int, float)) and not isinstance(_raw_value(v), bool)
                 ]
                 if distinctive and not any(
                     _normalize(v) in body_norm or str(v).strip().lower() in body.lower()
@@ -571,10 +578,11 @@ def _check_table_totals(data: dict, warnings: list[str]) -> None:
     """
     totals: dict[str, float] = {}
     for key, value in data.items():
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
+        raw = _raw_value(value)
+        if isinstance(raw, (int, float)) and not isinstance(raw, bool):
             lowered = key.lower()
             if "total" in lowered or "subtotal" in lowered or "grand" in lowered:
-                totals[key] = float(value)
+                totals[key] = float(raw)
     if not totals:
         return
     for key, value in data.items():
@@ -585,7 +593,7 @@ def _check_table_totals(data: dict, warnings: list[str]) -> None:
             if not isinstance(row, dict):
                 continue
             for amount_key in ("amount", "line_total", "total"):
-                amount = _num_key(row.get(amount_key))
+                amount = _num_key(_raw_value(row.get(amount_key)))
                 if amount is not None:
                     amounts.append(amount)
                     break

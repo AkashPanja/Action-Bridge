@@ -27,4 +27,7 @@ DEFAULT_PROCESSING = {
     "default_retries": 3,
     "default_timeout_s": 120,
     "paused": False,
+    # Extraction auto-approve: documents whose every field scores at or above
+    # this are approved without human review (FR-8.1b). 0 disables it.
+    "auto_approve_threshold": 0.92,
 }

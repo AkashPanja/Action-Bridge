@@ -7,7 +7,7 @@ import { useProcessing, useUpdateProcessing } from "../../hooks/useExtraction";
 export function ProcessingPage() {
   const { data, isLoading } = useProcessing();
   const update = useUpdateProcessing();
-  const [form, setForm] = useState({ cpu_workers: 4, max_jobs_in_flight: 8, default_retries: 3, default_timeout_s: 120, paused: false });
+  const [form, setForm] = useState({ cpu_workers: 4, max_jobs_in_flight: 8, default_retries: 3, default_timeout_s: 120, paused: false, auto_approve_threshold: 0.92 });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
@@ -19,6 +19,7 @@ export function ProcessingPage() {
         default_retries: data.default_retries,
         default_timeout_s: data.default_timeout_s,
         paused: data.paused,
+        auto_approve_threshold: data.auto_approve_threshold ?? 0.92,
       });
     }
   }, [data]);
@@ -61,7 +62,12 @@ export function ProcessingPage() {
                 value={form.default_retries} onChange={(e) => set("default_retries", parseInt(e.target.value) || 0)} />
               <Input label="Default timeout (seconds)" type="number" min={5} max={3600}
                 value={form.default_timeout_s} onChange={(e) => set("default_timeout_s", parseInt(e.target.value) || 5)} />
+              <Input label="Auto-approve at/above score (0 disables)" type="number" min={0} max={1} step={0.01}
+                value={form.auto_approve_threshold} onChange={(e) => set("auto_approve_threshold", parseFloat(e.target.value) || 0)} />
             </div>
+            <p className="-mt-2 text-xs text-surface-400">
+              Extractions where every field scores at or above this are approved without human review.
+            </p>
             {error ? (
               <p className="rounded-xl bg-accent-50 px-4 py-2 text-sm text-accent-600 dark:bg-accent-900/20 dark:text-accent-400">{error}</p>
             ) : null}

@@ -14,6 +14,10 @@ LIMITS = {
     "default_timeout_s": (5, 3600),
 }
 
+FLOAT_LIMITS = {
+    "auto_approve_threshold": (0.0, 1.0),
+}
+
 
 def _validate(values: dict):
     for key, (lo, hi) in LIMITS.items():
@@ -22,6 +26,14 @@ def _validate(values: dict):
                 num = int(values[key])
             except (TypeError, ValueError):
                 raise ValueError(f"{key} must be an integer")
+            if not lo <= num <= hi:
+                raise ValueError(f"{key} must be between {lo} and {hi}")
+    for key, (lo, hi) in FLOAT_LIMITS.items():
+        if key in values and values[key] is not None:
+            try:
+                num = float(values[key])
+            except (TypeError, ValueError):
+                raise ValueError(f"{key} must be a number")
             if not lo <= num <= hi:
                 raise ValueError(f"{key} must be between {lo} and {hi}")
     if "paused" in values and not isinstance(values["paused"], bool):

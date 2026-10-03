@@ -56,6 +56,7 @@ export interface ProcessingSettings {
   default_retries: number;
   default_timeout_s: number;
   paused: boolean;
+  auto_approve_threshold?: number;
 }
 
 export interface CandidateType {
