@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import RequirePermission, get_current_active_user, get_current_user_or_api_key
+from app.auth.deps import RequirePermission, get_current_active_user, get_current_user_or_api_key, require_api_key_scope
 from app.auth.permissions import RequireProjectPermission, check_project_permission, PROJECT_PERMISSION_MATRIX
 from app.database import get_db
 from app.schemas.document import (
@@ -16,6 +16,19 @@ from app.schemas.document import (
     DocumentSubmit,
     DocumentUpdate,
 )
+
+
+def sanitize_csv_cell(value: str | int | float | None) -> str | int | float | None:
+    """Neutralize spreadsheet formula injection (OWASP CSV Injection).
+
+    Cells starting with = + - @ (after optional whitespace, incl. tab/CR)
+    execute as formulas in Excel/Sheets. A leading apostrophe forces text.
+    """
+    if not isinstance(value, str):
+        return value
+    if value.lstrip(" \t\r\n")[:1] in ("=", "+", "-", "@"):
+        return "'" + value
+    return value
 from app.schemas.document_type import BulkIds
 from app.services import document_service
 
@@ -45,6 +58,7 @@ async def submit_document(
         )
         if not sr.scalar_one_or_none():
             raise HTTPException(status_code=403, detail="API key not authorized for this project")
+        require_api_key_scope(auth, "documents:write")
     actor = getattr(auth, "email", "rpa_bot")
     result = await document_service.submit_document(
         db, project_id, type_id, data.extracted_data, data.confidence_scores, actor
@@ -176,7 +190,7 @@ async def export_documents(
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(headers)
-    writer.writerows(rows)
+    writer.writerows([[sanitize_csv_cell(v) for v in row] for row in rows])
     buf.seek(0)
     return StreamingResponse(
         buf,

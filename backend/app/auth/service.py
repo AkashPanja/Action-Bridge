@@ -56,12 +56,41 @@ async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
     return result.scalar_one_or_none()
 
 
+DEFAULT_PASSWORD_POLICY = {
+    "min_length": 8,
+    "require_uppercase": True,
+    "require_lowercase": True,
+    "require_numbers": True,
+    "require_symbols": False,
+}
+
+
+async def validate_password_policy(db: AsyncSession, password: str) -> str | None:
+    """Returns an error message when the password violates the stored policy."""
+    policy = dict(DEFAULT_PASSWORD_POLICY)
+    stored = await get_setting(db, "password_policy")
+    if isinstance(stored, dict):
+        policy.update({k: v for k, v in stored.items() if k in policy})
+    if len(password) < int(policy["min_length"]):
+        return f"Password must be at least {policy['min_length']} characters"
+    if policy["require_uppercase"] and not any(c.isupper() for c in password):
+        return "Password must contain an uppercase letter"
+    if policy["require_lowercase"] and not any(c.islower() for c in password):
+        return "Password must contain a lowercase letter"
+    if policy["require_numbers"] and not any(c.isdigit() for c in password):
+        return "Password must contain a number"
+    if policy["require_symbols"] and not any(not c.isalnum() for c in password):
+        return "Password must contain a symbol"
+    return None
+
+
 async def create_user(db: AsyncSession, data: RegisterRequest) -> User:
+    # Open registration can never mint privileged roles (priv-esc guard).
     user = User(
         email=data.email,
         password_hash=hash_password(data.password),
         name=data.name,
-        role=data.role,
+        role="editor",
     )
     db.add(user)
     await db.commit()

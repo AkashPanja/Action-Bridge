@@ -43,8 +43,10 @@ async def upload_logo(file: UploadFile = File(...), db: AsyncSession = Depends(g
     content = await file.read()
     if len(content) > 2 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Logo must be under 2MB")
+    mime = (file.content_type or "").split(";")[0].strip().lower()
+    if mime not in ("image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"):
+        raise HTTPException(status_code=400, detail="Logo must be a PNG, JPEG, GIF, WebP, or SVG image")
     b64 = base64.b64encode(content).decode()
-    mime = file.content_type or "image/png"
     data_uri = f"data:{mime};base64,{b64}"
     existing = await get_setting(db, "company") or {"name": "Action Bridge", "logo": ""}
     existing["logo"] = data_uri

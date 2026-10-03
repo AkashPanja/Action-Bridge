@@ -46,7 +46,7 @@ class TestAuthRegister:
     async def test_register_new_user(self, client: AsyncClient, setup_complete):
         resp = await client.post("/api/v1/auth/register", json={
             "email": "newuser@test.com",
-            "password": "pass12345",
+            "password": "Pass12345",
             "name": "New User",
             "role": "editor",
         })
@@ -57,10 +57,10 @@ class TestAuthRegister:
 
     async def test_register_duplicate_email(self, client: AsyncClient, setup_complete):
         await client.post("/api/v1/auth/register", json={
-            "email": "dup@test.com", "password": "pass12345", "name": "Dup",
+            "email": "dup@test.com", "password": "Pass12345", "name": "Dup",
         })
         resp = await client.post("/api/v1/auth/register", json={
-            "email": "dup@test.com", "password": "pass12345", "name": "Dup",
+            "email": "dup@test.com", "password": "Pass12345", "name": "Dup",
         })
         assert resp.status_code == 409
 
@@ -68,11 +68,11 @@ class TestAuthRegister:
 class TestAuthLogin:
     async def test_login_success(self, client: AsyncClient, setup_complete):
         await client.post("/api/v1/auth/register", json={
-            "email": "login@test.com", "password": "pass12345", "name": "Login",
+            "email": "login@test.com", "password": "Pass12345", "name": "Login",
         })
         resp = await client.post("/api/v1/auth/login", json={
             "email": "login@test.com",
-            "password": "pass12345",
+            "password": "Pass12345",
         })
         assert resp.status_code == 200
         data = resp.json()
@@ -81,7 +81,7 @@ class TestAuthLogin:
 
     async def test_login_wrong_password(self, client: AsyncClient, setup_complete):
         await client.post("/api/v1/auth/register", json={
-            "email": "wrong@test.com", "password": "pass12345", "name": "Wrong",
+            "email": "wrong@test.com", "password": "Pass12345", "name": "Wrong",
         })
         resp = await client.post("/api/v1/auth/login", json={
             "email": "wrong@test.com",
@@ -92,7 +92,7 @@ class TestAuthLogin:
     async def test_login_nonexistent(self, client: AsyncClient, setup_complete):
         resp = await client.post("/api/v1/auth/login", json={
             "email": "nobody@test.com",
-            "password": "pass12345",
+            "password": "Pass12345",
         })
         assert resp.status_code == 401
 
@@ -116,14 +116,14 @@ class TestAuthPasswordChange:
     async def test_change_password(self, client: AsyncClient, admin_headers):
         resp = await client.post("/api/v1/auth/me/password", headers=admin_headers, json={
             "current_password": "admin123",
-            "new_password": "newpass456",
+            "new_password": "Newpass456",
         })
         assert resp.status_code == 200
 
     async def test_change_password_wrong_current(self, client: AsyncClient, admin_headers):
         resp = await client.post("/api/v1/auth/me/password", headers=admin_headers, json={
             "current_password": "wrongpassword",
-            "new_password": "newpass456",
+            "new_password": "Newpass456",
         })
         assert resp.status_code == 400
 
@@ -146,14 +146,14 @@ class TestAuthPasswordReset:
         token = create_access_token({"sub": admin_user.id, "purpose": "password_reset"}, expires_minutes=60)
         resp = await client.post("/api/v1/auth/password-reset/confirm", json={
             "token": token,
-            "new_password": "resetpass123",
+            "new_password": "Resetpass123",
         })
         assert resp.status_code == 200
 
     async def test_confirm_reset_invalid_token(self, client: AsyncClient):
         resp = await client.post("/api/v1/auth/password-reset/confirm", json={
             "token": "invalidtokenhere",
-            "new_password": "resetpass123",
+            "new_password": "Resetpass123",
         })
         assert resp.status_code == 400
 
@@ -162,7 +162,7 @@ class TestAuthUserManagement:
     async def test_create_user_as_admin(self, client: AsyncClient, admin_headers):
         resp = await client.post("/api/v1/auth/users", headers=admin_headers, json={
             "email": "created@test.com",
-            "password": "pass12345",
+            "password": "Pass12345",
             "name": "Created User",
             "role": "editor",
         })
@@ -172,7 +172,7 @@ class TestAuthUserManagement:
     async def test_create_user_as_reviewer_forbidden(self, client: AsyncClient, editor_headers):
         resp = await client.post("/api/v1/auth/users", headers=editor_headers, json={
             "email": "shouldfail@test.com",
-            "password": "pass12345",
+            "password": "Pass12345",
             "name": "Should Fail",
             "role": "editor",
         })
@@ -256,7 +256,7 @@ class TestAuthApiKeys:
 class TestAuthReset:
     async def test_reset_system(self, client: AsyncClient, admin_headers, setup_complete):
         await client.post("/api/v1/auth/users", headers=admin_headers, json={
-            "email": "temp@test.com", "password": "pass12345", "name": "Temp",
+            "email": "temp@test.com", "password": "Pass12345", "name": "Temp",
         })
         resp = await client.post("/api/v1/auth/reset", headers=admin_headers)
         assert resp.status_code == 200

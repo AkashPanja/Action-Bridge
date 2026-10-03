@@ -32,6 +32,21 @@ ALLOWED_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 
+# Extension is derived from the validated MIME type, never from the
+# client-supplied filename — otherwise an attacker can store "evil.html"
+# (served back as HTML) while claiming image/png.
+MIME_TO_EXT = {
+    "application/pdf": ".pdf",
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/gif": ".gif",
+    "text/plain": ".txt",
+    "text/csv": ".csv",
+    "application/json": ".json",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+}
+
 
 @router.post("/{document_id}", status_code=201)
 async def upload_attachment(
@@ -59,7 +74,10 @@ async def upload_attachment(
             detail=f"File exceeds maximum size of {MAX_FILE_SIZE // (1024 * 1024)} MB",
         )
 
-    ext = Path(file.filename).suffix if file.filename else ""
+    ext = MIME_TO_EXT.get(file.content_type or "")
+    if ext is None:
+        # Validated above; defense in depth against crafted content types.
+        raise HTTPException(status_code=400, detail="File type not allowed")
     stored_name = f"{uuid.uuid4()}{ext}"
 
     with open(UPLOAD_DIR / stored_name, "wb") as f:

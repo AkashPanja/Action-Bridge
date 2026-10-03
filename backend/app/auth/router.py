@@ -38,6 +38,7 @@ from app.auth.service import (
     revoke_api_key,
     save_setting,
     update_user,
+    validate_password_policy,
     verify_password,
 )
 from app.database import get_db
@@ -56,6 +57,9 @@ async def setup_status(db: AsyncSession = Depends(get_db)):
 async def setup(data: SetupRequest, db: AsyncSession = Depends(get_db)):
     if not await check_setup_required(db):
         raise HTTPException(status_code=409, detail="System is already set up")
+    policy_error = await validate_password_policy(db, data.password)
+    if policy_error:
+        raise HTTPException(status_code=400, detail=policy_error)
 
     user = await create_initial_admin(db, data)
 
@@ -87,6 +91,9 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     existing = await get_user_by_email(db, data.email)
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
+    policy_error = await validate_password_policy(db, data.password)
+    if policy_error:
+        raise HTTPException(status_code=400, detail=policy_error)
     return await create_user(db, data)
 
 
@@ -130,6 +137,9 @@ async def change_password(
 ):
     if not verify_password(data.current_password, current_user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
+    policy_error = await validate_password_policy(db, data.new_password)
+    if policy_error:
+        raise HTTPException(status_code=400, detail=policy_error)
     current_user.password_hash = hash_password(data.new_password)
     await db.commit()
     return {"message": "Password updated"}
@@ -166,6 +176,9 @@ async def confirm_password_reset(
     user = await get_user_by_id(db, payload["sub"])
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    policy_error = await validate_password_policy(db, data.new_password)
+    if policy_error:
+        raise HTTPException(status_code=400, detail=policy_error)
     user.password_hash = hash_password(data.new_password)
     await db.commit()
     return {"message": "Password has been reset"}
@@ -180,6 +193,9 @@ async def create_user_endpoint(
     existing = await get_user_by_email(db, data.email)
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
+    policy_error = await validate_password_policy(db, data.password)
+    if policy_error:
+        raise HTTPException(status_code=400, detail=policy_error)
     return await create_user_by_admin(db, data)
 
 

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import get_current_user_or_api_key
+from app.auth.deps import get_current_user_or_api_key, require_api_key_scope
 from app.auth.permissions import check_project_permission
 from app.database import get_db
 from app.models.api_key_scope import ApiKeyProjectScope
@@ -35,6 +35,7 @@ async def _authorize(project_id: str, db: AsyncSession, auth) -> tuple[str | Non
     )
     if not sr.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="API key not authorized for this project")
+    require_api_key_scope(auth, "documents:write")
     return None, auth.id
 
 

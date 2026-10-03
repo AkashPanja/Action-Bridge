@@ -8,6 +8,7 @@ Single source of truth for product requirements. Requirement IDs (`FR-x`) are fo
 - v1.0 — Original extraction & email-ingestion spec.
 - v1.1 — PM review: code-verified open items, auto-approve conflict (FR-8.1a), nested-confidence rule (R3), provider call log (FR-1.8).
 - v1.2 — Consolidated with the platform baseline; OAuth-first + IMAP fallback (A1), per-trigger import window (A2), ingest-and-skip taxonomy (A3), intake wizard + connection health (FR-8.6); status-marked every item.
+- v1.3 — Platform security hardening: FR-S7 (auth hardening), FR-S8 (API-key scopes), FR-S9 (upload safety), FR-S10 (SSRF redirect chain), FR-S11 (output safety).
 
 **Stack:** FastAPI, SQLAlchemy async, Pydantic v2, PostgreSQL/SQLite, Alembic, React 18 + Vite + TypeScript + Tailwind, JWT + `X-API-Key` auth, roles Admin/Reviewer/Viewer.
 
@@ -249,6 +250,14 @@ Files live on disk under a configurable root, never in the DB.
 - **FR-S4 Files:** never execute content; sanitised generated names; size/page/zip limits. 🔲 M2
 - **FR-S5 Secrets:** never log secrets, secret-bearing prompts, or full text at info level. ✅ Done (M1; extend in M2)
 - **FR-S6 RBAC:** admins manage credentials/providers/triggers/settings; project keys submit + read own jobs only. ◐ (M1 endpoints ✅; key-scoped extract rights in M2)
+
+### B9b. Platform security hardening (implemented)
+
+- **FR-S7 Authentication hardening.** Open registration mints `editor` only (client-supplied `role` ignored — closes privilege escalation); stored password policy enforced server-side on setup/register/admin-create/change/reset; deactivated users lose API access immediately (tokens checked against `is_active`); login/register/setup/password-reset throttled per IP (429 + `Retry-After`). ✅ Done
+- **FR-S8 API-key least privilege.** Key `scopes` enforced per endpoint (`documents:write` on submit/extract), in addition to project scoping. ✅ Done
+- **FR-S9 Upload safety.** Attachment extensions derived from validated MIME (never the client filename — blocks stored-XSS via `.html` spoofing); logo uploads restricted to image MIMEs. ✅ Done
+- **FR-S10 SSRF redirect chain.** Private-address check re-applied on every redirect hop (max 3); DNS resolved off the event loop; private provider URLs rejected unless marked local. ✅ Done
+- **FR-S11 Output safety.** CSV exports neutralize formula-injection cells (`= + - @`); security headers (`nosniff`, `DENY` framing, strict referrer, locked-down permissions) on all responses; interactive API docs disabled outside debug mode; startup refuses default `SECRET_KEY` outside debug. ✅ Done
 
 ### B10. Local setup and non-functional notes
 

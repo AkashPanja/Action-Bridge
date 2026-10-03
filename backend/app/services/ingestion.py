@@ -7,7 +7,7 @@ import os
 import re
 import socket
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -189,25 +189,45 @@ def validate_provider_url(base_url: str, is_local: bool) -> None:
 
 
 async def fetch_url(url: str, max_bytes: int = MAX_DOWNLOAD_BYTES) -> tuple[str, bytes]:
-    """Download a document URL with SSRF guard, timeout, and size cap."""
-    if is_private_url(url):
-        raise ValueError("URL targets a private or invalid address")
-    try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True, max_redirects=3) as client:
-            async with client.stream("GET", url) as resp:
-                if resp.status_code != 200:
-                    raise ValueError(f"Download failed with status {resp.status_code}")
-                chunks: list[bytes] = []
-                total = 0
-                async for chunk in resp.aiter_bytes(65536):
-                    total += len(chunk)
-                    if total > max_bytes:
-                        raise ValueError("Download exceeds size cap")
-                    chunks.append(chunk)
-                content = b"".join(chunks)
-    except httpx.HTTPError as exc:
-        raise ValueError(f"Download failed: {exc}") from exc
-    parsed = urlparse(url)
+    """Download a document URL with SSRF guard, timeout, and size cap.
+
+    Redirects are followed manually (max 3) with the private-address check
+    re-applied to every hop — httpx auto-redirects would otherwise let a
+    public URL bounce to an internal address. DNS is resolved off the event
+    loop. Residual TOCTOU (DNS changing between check and connect) is accepted
+    for this deployment tier; a filtering egress proxy removes it entirely.
+    """
+    import asyncio
+
+    current = url
+    for _ in range(4):  # initial + up to 3 redirects
+        if await asyncio.to_thread(is_private_url, current):
+            raise ValueError("URL targets a private or invalid address")
+        try:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
+                async with client.stream("GET", current) as resp:
+                    if resp.status_code in (301, 302, 303, 307, 308):
+                        location = resp.headers.get("location")
+                        if not location:
+                            raise ValueError("Redirect without location")
+                        current = urljoin(current, location)
+                        continue
+                    if resp.status_code != 200:
+                        raise ValueError(f"Download failed with status {resp.status_code}")
+                    chunks: list[bytes] = []
+                    total = 0
+                    async for chunk in resp.aiter_bytes(65536):
+                        total += len(chunk)
+                        if total > max_bytes:
+                            raise ValueError("Download exceeds size cap")
+                        chunks.append(chunk)
+                    content = b"".join(chunks)
+                    break
+        except httpx.HTTPError as exc:
+            raise ValueError(f"Download failed: {exc}") from exc
+    else:
+        raise ValueError("Too many redirects")
+    parsed = urlparse(current)
     filename = os.path.basename(parsed.path.rstrip("/")) or "download"
     ctype = resp.headers.get("content-type", "").split(";")[0].strip()
     if "." not in filename and ctype:

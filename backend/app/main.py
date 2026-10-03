@@ -8,6 +8,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import AsyncSessionLocal, engine
+from app.middleware.ratelimit import RateLimitMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.models import Base
 from app.routers import (
     attachments,
@@ -34,9 +36,20 @@ from .auth.router import router as auth_router
 
 logger = logging.getLogger("app.main")
 
+DEFAULT_SECRET = "change-me-in-production-use-a-long-random-string"
+
+
+def ensure_production_secrets() -> None:
+    if not settings.debug and settings.secret_key == DEFAULT_SECRET:
+        raise RuntimeError(
+            "Refusing to start with the default SECRET_KEY outside debug mode. "
+            "Set a strong SECRET_KEY."
+        )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    ensure_production_secrets()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     async with AsyncSessionLocal() as db:
@@ -57,7 +70,14 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app = FastAPI(
+    title=settings.app_name,
+    lifespan=lifespan,
+    # Interactive docs only in debug; they expose the full API surface.
+    docs_url="/docs" if settings.debug else None,
+    redoc_url=None,
+    openapi_url="/openapi.json" if settings.debug else None,
+)
 
 origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(
@@ -67,6 +87,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["Authorization", "X-API-Key", "Content-Type"],
 )
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(auth_router)
 app.include_router(projects.router)
