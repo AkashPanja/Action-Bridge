@@ -58,7 +58,11 @@ DEFAULT_PROMPTS = {
         "2. Missing field: use null (and 0.0 confidence where the schema asks for it).\n"
         "3. Amounts: plain numbers, no currency symbols or thousand separators.\n"
         "4. Include every line item in order. Do not merge or skip rows.\n"
-        "5. Output must be parseable JSON: double quotes, no trailing commas, no comments.\n"
+        "5. Line items come ONLY from the itemized table body between the column "
+        "header row and the first summary line (Subtotal, Total, Discount, Shipping, "
+        "Tax, Balance). Never create rows from summary, tax, discount, shipping, "
+        "category, or notes lines.\n"
+        "6. Output must be parseable JSON: double quotes, no trailing commas, no comments.\n"
         "DOCUMENT:\n<DOCUMENT>\n{text}\n</DOCUMENT>"
     ),
     "classification": (

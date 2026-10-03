@@ -1,6 +1,7 @@
 """LLM extraction: classification, schema-bound extraction, grounding (spec 5.7)."""
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 
@@ -191,6 +192,7 @@ async def extract_one(
                 await log_call(db, provider, True, latency, result.tokens_in, result.tokens_out, job_id=job_id)
                 signals = ground_signals(data, text)
                 scores = map_confidence(data, signals, await _signal_map(db))
+                scores, row_warnings = verify_table_rows(data, text, scores)
                 meta = {
                     "provider": provider.name, "model": provider.model,
                     "prompt_version": profile.version,
@@ -199,8 +201,10 @@ async def extract_one(
                     "json_mode": result.json_mode,
                 }
                 # Pass through model-reported extras when the schema asks for them.
-                if isinstance(data.get("warnings"), list):
-                    meta["warnings"] = [str(w) for w in data["warnings"]][:20]
+                model_warnings = data.get("warnings") if isinstance(data.get("warnings"), list) else []
+                combined_warnings = [str(w) for w in model_warnings] + row_warnings
+                if combined_warnings:
+                    meta["warnings"] = combined_warnings[:20]
                 overall = data.get("overall_confidence")
                 if isinstance(overall, (int, float)) and 0 <= overall <= 1:
                     meta["overall_confidence"] = round(float(overall), 3)
@@ -390,6 +394,213 @@ def map_confidence(data: dict, signals: dict, signal_map: dict) -> dict:
         else:
             scores[key] = leaf_score(sig.get("found", False), sig.get("retries", 0))
     return scores
+
+
+SUMMARY_MARKERS = (
+    "subtotal", "total", "discount", "shipping", "tax", "balance",
+    "amount due", "grand total", "net payable",
+)
+DESC_KEYS = ("description", "item", "name", "particulars", "service", "product")
+AMOUNT_KEYS = ("amount", "line_total", "total", "price", "rate", "net")
+
+ROW_CAP_NUMERIC_DESC = 0.3
+ROW_CAP_DUPLICATE = 0.5
+ROW_CAP_SUMMARY_ONLY = 0.5
+ROW_CAP_HEADER_WORD = 0.3
+
+HEADER_WORDS = frozenset({
+    "item", "items", "description", "descriptions", "quantity", "qty",
+    "rate", "amount", "price", "unit", "total", "subtotal", "product",
+    "service", "particulars", "discount", "shipping", "tax",
+})
+
+
+def _split_regions(text: str) -> tuple[str, str]:
+    """Split source text into (body, summary).
+
+    Summary starts at the first summary-marker line (subtotal/total/discount/
+    shipping/tax/balance...) that begins a *cluster* after the item table:
+    the table header (a line like Item/Description with quantity/rate/amount
+    nearby) is located first, then the first clustered marker after it.
+    Without a table header, falls back to the first clustered marker anywhere.
+    Header lines like "Balance Due:" before the table never split.
+    Returns (text, "") when no summary block is found.
+    """
+
+    def is_marker(line: str) -> bool:
+        stripped = line.strip().lower()
+        return any(
+            stripped.startswith(marker) and len(stripped) < len(marker) + 40
+            for marker in SUMMARY_MARKERS
+        )
+
+    def is_table_header(idx: int, lines: list[str]) -> bool:
+        if not TABLE_HEADER_RE.match(lines[idx].strip().lower()):
+            return False
+        nearby = " ".join(lines[max(0, idx - 3):idx + 4]).lower()
+        return any(word in nearby for word in ("quantity", "qty", "rate", "amount", "price"))
+
+    def clustered_from(marks: set[int], start: int, lines: list[str]) -> int | None:
+        for i in sorted(marks):
+            if i >= start and any(j in marks for j in range(i + 1, min(i + 4, len(lines)))):
+                return i
+        return None
+
+    lines = (text or "").splitlines()
+    if not lines:
+        return text, ""
+    marks = {i for i, line in enumerate(lines) if is_marker(line)}
+    if not marks:
+        return text, ""
+    header_at = next((i for i in range(len(lines)) if is_table_header(i, lines)), None)
+    if header_at is not None:
+        split = clustered_from(marks, header_at + 1, lines)
+    else:
+        split = clustered_from(marks, 0, lines)
+    if split is None:
+        return text, ""
+    return "\n".join(lines[:split]), "\n".join(lines[split:])
+
+
+TABLE_HEADER_RE = re.compile(r"^(item|items|description|descriptions|particulars|services?)\b")
+
+
+def _is_number_text(value: object) -> bool:
+    if isinstance(value, bool) or value is None:
+        return False
+    s = str(value).strip().replace(",", "").replace(" ", "")
+    for symbol in ("$", "€", "£", "₹", "%"):
+        s = s.replace(symbol, "")
+    if not s:
+        return False
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def _num_key(value: object) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        return float(str(value).replace(",", "").strip().rstrip("%"))
+    except ValueError:
+        return None
+
+
+def verify_table_rows(data: dict, text: str, scores: dict) -> tuple[dict, list[str]]:
+    """Deterministic row checks against summary-line misreads.
+
+    Returns (adjusted_scores, warnings). Caps offending row cells so the
+    heatmap flags exactly the bad rows instead of false-green.
+    """
+    warnings: list[str] = []
+    if not isinstance(data, dict):
+        return scores, warnings
+    body, summary = _split_regions(text or "")
+    body_norm = _normalize(body)
+
+    for key, value in data.items():
+        if not isinstance(value, list):
+            continue
+        mapped = scores.get(key)
+        if not isinstance(mapped, list) or not mapped:
+            continue
+        seen_amounts: set[float] = set()
+        for idx, row in enumerate(value):
+            if not isinstance(row, dict):
+                continue
+            row_no = idx + 1
+            reasons: list[str] = []
+            cap = 1.0
+
+            desc_val = next((row.get(k) for k in DESC_KEYS if row.get(k) not in (None, "")), None)
+            if desc_val is not None and _is_number_text(desc_val):
+                reasons.append(f"Row {row_no} description is just a number — likely a summary line, not an item")
+                cap = min(cap, ROW_CAP_NUMERIC_DESC)
+            if isinstance(desc_val, str) and desc_val.strip().lower() in HEADER_WORDS:
+                reasons.append(f"Row {row_no} description is a column header word — likely a misread, verify")
+                cap = min(cap, ROW_CAP_HEADER_WORD)
+
+            for amount_key in AMOUNT_KEYS:
+                amount = _num_key(row.get(amount_key))
+                if amount is None:
+                    continue
+                if amount in seen_amounts:
+                    reasons.append(f"Row {row_no} amount {row.get(amount_key)} duplicates an earlier row — verify")
+                    cap = min(cap, ROW_CAP_DUPLICATE)
+            for amount_key in AMOUNT_KEYS:
+                amount = _num_key(row.get(amount_key))
+                if amount is not None:
+                    seen_amounts.add(amount)
+
+            if body and summary:
+                distinctive = [
+                    str(v) for v in row.values()
+                    if isinstance(v, str) and len(v.strip()) > 2
+                ] + [
+                    str(v) for v in row.values()
+                    if isinstance(v, (int, float)) and not isinstance(v, bool)
+                ]
+                if distinctive and not any(
+                    _normalize(v) in body_norm or str(v).strip().lower() in body.lower()
+                    for v in distinctive
+                ):
+                    reasons.append(f"Row {row_no} values appear only outside the item table — verify")
+                    cap = min(cap, ROW_CAP_SUMMARY_ONLY)
+
+            if reasons:
+                warnings.extend(reasons)
+                cell = mapped[idx] if idx < len(mapped) else None
+                if isinstance(cell, dict):
+                    for cell_key, cell_val in list(cell.items()):
+                        if isinstance(cell_val, (int, float)):
+                            cell[cell_key] = round(min(float(cell_val), cap), 3)
+
+    _check_table_totals(data, warnings)
+    return scores, warnings
+
+
+def _check_table_totals(data: dict, warnings: list[str]) -> None:
+    """Warn when a table's rows don't add up to any extracted total.
+
+    Accepts a match against total/subtotal/grand-total fields (invoices often
+    total subtotal - discount + shipping, so every extracted total is a candidate).
+    Warning-only: it can't pinpoint which row is wrong.
+    """
+    totals: dict[str, float] = {}
+    for key, value in data.items():
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            lowered = key.lower()
+            if "total" in lowered or "subtotal" in lowered or "grand" in lowered:
+                totals[key] = float(value)
+    if not totals:
+        return
+    for key, value in data.items():
+        if not isinstance(value, list) or not value:
+            continue
+        amounts: list[float] = []
+        for row in value:
+            if not isinstance(row, dict):
+                continue
+            for amount_key in ("amount", "line_total", "total"):
+                amount = _num_key(row.get(amount_key))
+                if amount is not None:
+                    amounts.append(amount)
+                    break
+        if not amounts:
+            continue
+        row_sum = round(sum(amounts), 2)
+        for tkey, tval in totals.items():
+            if abs(row_sum - tval) <= max(0.01, abs(tval) * 0.01):
+                break
+        else:
+            shown = ", ".join(f"{k}={v}" for k, v in totals.items())
+            warnings.append(
+                f"Table '{key}' rows sum to {row_sum} but no extracted total matches "
+                f"({shown}) — verify rows"
+            )
 
 
 async def ocr_transcribe(

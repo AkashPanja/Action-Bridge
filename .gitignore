@@ -37,6 +37,8 @@ backend/.env
 *.bak
 *~
 *.log
+pytest_*.txt
+worker_*.txt
 
 # Uploads (runtime data)
 uploads/

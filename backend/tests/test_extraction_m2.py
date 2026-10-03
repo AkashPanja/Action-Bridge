@@ -621,3 +621,169 @@ class TestRichContract:
         # vendor pair: model 0.0 + absent -> min() floors at 0.0, still submittable
         assert result.scores["vendor"] == 0.0
         assert result.scores["invoice_number"] == 0.9
+
+
+XYLONA_TEXT = """INVOICE
+# 3875
+SuperStore
+Bill To:
+Xylona Preis
+Ship Mode: Standard Class
+Balance Due:
+Item
+Quantity
+Rate
+Amount
+Hon Wood Table, with Bottom Storage
+10
+$2,833.76
+$28,337.60
+Tables, Furniture, FUR-TA-4713
+Subtotal:
+$28,337.60
+Discount (20%):
+$5,667.52
+Shipping:
+$269.94
+Total:
+$22,940.02"""
+
+XYLONA_BAD_ROWS = {
+    "invoice_number": "3875",
+    "total_amount": 22940.02,
+    "items": [
+        {"item": "Hon Wood Table, with Bottom Storage", "quantity": 10,
+         "rate": 2833.76, "amount": 28337.6},
+        {"item": "Tables, Furniture, FUR-TA-4713", "quantity": 1,
+         "rate": 5667.52, "amount": 28337.6},
+        {"item": "269.94", "quantity": 1, "rate": 269.94, "amount": 269.94},
+    ],
+}
+
+
+def _full_scores():
+    return {
+        "invoice_number": 0.95,
+        "items": [
+            {"item": 0.95, "quantity": 0.95, "rate": 0.95, "amount": 0.95},
+            {"item": 0.95, "quantity": 0.95, "rate": 0.95, "amount": 0.95},
+            {"item": 0.95, "quantity": 0.95, "rate": 0.95, "amount": 0.95},
+        ],
+    }
+
+
+class TestRowVerification:
+    async def test_split_regions(self):
+        from app.services.extraction import _split_regions
+
+        body, summary = _split_regions(XYLONA_TEXT)
+        assert "Hon Wood Table" in body
+        assert "Subtotal" not in body
+        assert "Subtotal" in summary
+        assert "22,940.02" in summary
+
+    async def test_split_ignores_header_balance_due(self):
+        from app.services.extraction import _split_regions
+
+        text = "Header\nBalance Due:\nItem\nQuantity\nWidget\nSubtotal:\n$10\nTotal:\n$10"
+        body, summary = _split_regions(text)
+        assert "Widget" in body
+        assert summary.startswith("Subtotal:")
+
+    async def test_flags_bad_rows_only(self):
+        from app.services.extraction import verify_table_rows
+
+        scores, warnings = verify_table_rows(dict(XYLONA_BAD_ROWS), XYLONA_TEXT, _full_scores())
+        text = " ".join(warnings)
+        assert "Row 2" in text and "Row 3" in text
+        assert "Row 1" not in text
+        # row 1 untouched
+        assert scores["items"][0] == {"item": 0.95, "quantity": 0.95, "rate": 0.95, "amount": 0.95}
+        # row 2: duplicate amount -> capped at 0.5
+        assert scores["items"][1]["amount"] == 0.5
+        assert scores["items"][1]["rate"] == 0.5
+        # row 3: numeric description -> capped at 0.3
+        assert scores["items"][2]["item"] == 0.3
+
+    async def test_clean_table_untouched(self):
+        from app.services.extraction import verify_table_rows
+
+        data = {"items": [
+            {"item": "Hon Wood Table, with Bottom Storage", "quantity": 10,
+             "rate": 2833.76, "amount": 28337.6},
+        ]}
+        scores = {"items": [
+            {"item": 0.95, "quantity": 0.95, "rate": 0.95, "amount": 0.95},
+        ]}
+        out_scores, warnings = verify_table_rows(data, XYLONA_TEXT, scores)
+        assert warnings == []
+        assert out_scores == scores
+
+    async def test_header_word_row_flagged(self):
+        from app.services.extraction import verify_table_rows
+
+        data = {"items": [
+            {"item": "Real Widget", "quantity": 2, "rate": 100.0, "amount": 200.0},
+            {"item": "Item", "quantity": 1, "rate": 269.94, "amount": 269.94},
+        ]}
+        scores = {"items": [
+            {"item": 0.95, "quantity": 0.95, "rate": 0.95, "amount": 0.95},
+            {"item": 0.95, "quantity": 0.95, "rate": 0.95, "amount": 0.95},
+        ]}
+        out_scores, warnings = verify_table_rows(data, XYLONA_TEXT, scores)
+        assert any("Row 2" in w and "header" in w for w in warnings)
+        assert out_scores["items"][1]["item"] == 0.3
+        assert out_scores["items"][0]["item"] == 0.95
+
+    async def test_table_total_mismatch_warns(self):
+        from app.services.extraction import verify_table_rows
+
+        data = {
+            "total_amount": 22940.02,
+            "items": [
+                {"item": "A", "quantity": 10, "rate": 2833.76, "amount": 28337.6},
+                {"item": "B", "quantity": 1, "rate": 5667.52, "amount": 5667.52},
+            ],
+        }
+        scores = {"total_amount": 0.95, "items": [
+            {"item": 0.95, "quantity": 0.95, "rate": 0.95, "amount": 0.95},
+            {"item": 0.95, "quantity": 0.95, "rate": 0.95, "amount": 0.95},
+        ]}
+        _, warnings = verify_table_rows(data, XYLONA_TEXT, scores)
+        assert any("rows sum to" in w and "22940.02" in w for w in warnings)
+
+    async def test_table_total_match_silent(self):
+        from app.services.extraction import verify_table_rows
+
+        data = {
+            "subtotal": 28337.6,
+            "total_amount": 22940.02,
+            "items": [
+                {"item": "A", "quantity": 10, "rate": 2833.76, "amount": 28337.6},
+            ],
+        }
+        scores = {"subtotal": 0.95, "total_amount": 0.95, "items": [
+            {"item": 0.95, "quantity": 0.95, "rate": 0.95, "amount": 0.95},
+        ]}
+        _, warnings = verify_table_rows(data, XYLONA_TEXT, scores)
+        assert warnings == []
+
+    async def test_end_to_end_warnings_in_meta(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        import json
+
+        from app.services import extraction as ext_mod
+
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        prof_id = await create_profile(client, admin_headers, pid, tid, prov)
+
+        profile = await db_session.get(ext_mod.ExtractionProfile, prof_id)
+        doc_type = await db_session.get(ext_mod.DocumentType, tid)
+        patch_adapter(monkeypatch, [json.dumps(XYLONA_BAD_ROWS)])
+        result = await ext_mod.extract_one(db_session, profile, doc_type, XYLONA_TEXT)
+        assert any("Row 2" in w for w in result.meta.get("warnings", []))
+        assert any("Row 3" in w for w in result.meta.get("warnings", []))
+        assert result.scores["items"][2]["item"] == 0.3
