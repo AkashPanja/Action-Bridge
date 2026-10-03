@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, String, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, JSON, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.project import Base
@@ -39,3 +39,9 @@ class DocumentInstance(Base):
 
     project = relationship("Project", backref="document_instances")
     document_type = relationship("DocumentType", backref="document_instances")
+
+    # Covers the inbox query: filter by project + visibility, sort by recency.
+    __table_args__ = (
+        Index("ix_documents_project_visible_created", "project_id", "is_deleted", "created_at"),
+        Index("ix_documents_project_status", "project_id", "status"),
+    )

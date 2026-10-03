@@ -295,6 +295,23 @@ class TestDocumentListAndGet:
         assert isinstance(data, list)
         assert len(data) == 1
 
+    async def test_list_documents_pagination_and_type_names(self, client: AsyncClient, admin_headers):
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        for _ in range(3):
+            await submit_doc(client, admin_headers, pid, tid)
+        first = (await client.get(
+            f"/api/v1/projects/{pid}/documents?limit=2", headers=admin_headers)).json()
+        assert len(first) == 2
+        assert all(d["document_type_name"] == "TestDocType" for d in first)
+        rest = (await client.get(
+            f"/api/v1/projects/{pid}/documents?limit=2&offset=2", headers=admin_headers)).json()
+        assert len(rest) == 1
+        assert {d["id"] for d in first} | {d["id"] for d in rest} == {
+            d["id"] for d in (await client.get(
+                f"/api/v1/projects/{pid}/documents?limit=10", headers=admin_headers)).json()
+        }
+
     async def test_get_document(self, client: AsyncClient, admin_headers):
         pid = await create_project(client, admin_headers)
         tid = await create_doc_type(client, admin_headers, pid)

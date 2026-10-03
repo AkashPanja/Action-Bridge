@@ -109,6 +109,7 @@ export function DocumentTypeCreateDialog({ projectId, open, onOpenChange }: Prop
       onOpenChange={onOpenChange}
       title="Create Document Type"
       description="Define the fields and schema for this document type."
+      className="sm:max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input

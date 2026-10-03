@@ -479,7 +479,7 @@ export function ValidationRulesDialog({ projectId, docType, open, onOpenChange }
       onOpenChange={onOpenChange}
       title="Validation Rules"
       description={docType ? `Configure per-field validation rules for "${docType.name}"` : ""}
-      className="max-w-2xl"
+      className="sm:max-w-2xl"
     >
       {fields.length === 0 ? (
         <p className="text-sm text-surface-400">No fields defined in schema.</p>

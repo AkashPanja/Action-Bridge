@@ -307,6 +307,8 @@ async def list_documents(
     confidence_max: float | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
+    limit: int | None = 200,
+    offset: int = 0,
 ) -> list[DocumentInstance]:
     query = select(DocumentInstance).where(
         DocumentInstance.project_id == project_id,
@@ -333,9 +335,24 @@ async def list_documents(
     sort_col = allowed_sorts.get(sort_by, DocumentInstance.created_at)
     order_fn = sort_col.asc if sort_order == "asc" else sort_col.desc
     query = query.order_by(order_fn())
+    if limit is not None:
+        query = query.limit(max(1, min(limit, 1000))).offset(max(0, offset))
+    elif offset:
+        query = query.offset(max(0, offset))
 
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def get_type_names(db: AsyncSession, type_ids: list[str]) -> dict[str, str]:
+    """Batch-fetch document type names (avoids N+1 in list views)."""
+    ids = [t for t in dict.fromkeys(type_ids) if t]
+    if not ids:
+        return {}
+    result = await db.execute(
+        select(DocumentType.id, DocumentType.name).where(DocumentType.id.in_(ids))
+    )
+    return {row.id: row.name for row in result}
 
 
 async def update_document(
@@ -437,7 +454,7 @@ async def export_documents(
     confidence_min: float | None = None,
     confidence_max: float | None = None,
 ) -> tuple[list[str], list[list[str | int | float | None]]]:
-    docs = await list_documents(db, project_id, status, document_type_id, search, date_from, date_to, confidence_min, confidence_max)
+    docs = await list_documents(db, project_id, status, document_type_id, search, date_from, date_to, confidence_min, confidence_max, limit=None)
 
     from app.models.document_type import DocumentType
     type_names: dict[str, str] = {}

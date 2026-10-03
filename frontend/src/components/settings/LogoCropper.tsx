@@ -87,7 +87,7 @@ export function LogoCropper({ imageSrc, open, onClose, onConfirm }: LogoCropperP
       onOpenChange={(o) => { if (!o) onClose(); }}
       title="Crop your logo"
       description="Drag to reposition, scroll or use the slider to zoom. The result is resized to a maximum of 1024 px."
-      className="max-w-2xl"
+      className="sm:max-w-2xl"
     >
       <div className="relative h-72 w-full overflow-hidden rounded-xl bg-surface-100 dark:bg-surface-900 sm:h-80">
         <Cropper

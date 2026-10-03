@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import RequirePermission, get_current_active_user, get_current_user_or_api_key
 from app.auth.permissions import RequireProjectPermission, check_project_permission, PROJECT_PERMISSION_MATRIX
 from app.database import get_db
-from app.models.document_type import DocumentType
 from app.schemas.document import (
     DocumentListResponse,
     DocumentResponse,
@@ -71,26 +70,23 @@ async def list_documents(
     confidence_max: float | None = Query(None),
     sort_by: str | None = Query(None),
     sort_order: str | None = Query(None),
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     user = Depends(RequireProjectPermission("documents:read")),
 ):
     from datetime import datetime
     parsed_date_from = datetime.fromisoformat(date_from) if date_from else None
     parsed_date_to = datetime.fromisoformat(date_to) if date_to else None
-    docs = await document_service.list_documents(db, project_id, status, document_type_id, search, parsed_date_from, parsed_date_to, confidence_min, confidence_max, sort_by, sort_order)
-    result = []
-    for doc in docs:
-        dt = None
-        if doc.document_type_id:
-            result2 = await db.execute(
-                select(DocumentType).where(DocumentType.id == doc.document_type_id)
-            )
-            dt = result2.scalar_one_or_none()
-        result.append(DocumentListResponse(
+    docs = await document_service.list_documents(db, project_id, status, document_type_id, search, parsed_date_from, parsed_date_to, confidence_min, confidence_max, sort_by, sort_order, limit, offset)
+    type_names = await document_service.get_type_names(db, [doc.document_type_id for doc in docs if doc.document_type_id])
+    return [
+        DocumentListResponse(
             **{k: v for k, v in doc.__dict__.items() if k != "_sa_instance_state"},
-            document_type_name=dt.name if dt else None,
-        ))
-    return result
+            document_type_name=type_names.get(doc.document_type_id or ""),
+        )
+        for doc in docs
+    ]
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)

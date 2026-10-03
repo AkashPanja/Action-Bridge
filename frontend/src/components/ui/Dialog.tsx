@@ -18,10 +18,13 @@ export function Dialog({ open, onOpenChange, title, description, children, class
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%]",
-            "max-h-[90vh] overflow-y-auto",
-            "rounded-2xl border border-surface-200/60 bg-white p-6 shadow-2xl",
-            "dark:border-surface-700/50 dark:bg-surface-800",
+            "fixed z-50 flex w-full flex-col bg-white shadow-2xl",
+            "dark:bg-surface-800",
+            // Mobile: full-screen sheet
+            "inset-0 h-[100dvh] max-w-none rounded-none",
+            // Desktop: centered card
+            "sm:inset-auto sm:left-[50%] sm:top-[50%] sm:h-auto sm:max-h-[90vh] sm:max-w-xl sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border sm:border-surface-200/60 sm:dark:border-surface-700/50",
+            "overflow-hidden",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
             "data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
             "data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%]",
@@ -29,9 +32,9 @@ export function Dialog({ open, onOpenChange, title, description, children, class
             className,
           )}
         >
-          <div className="mb-4 flex items-start justify-between">
-            <div>
-              <DialogPrimitive.Title className="text-lg font-semibold text-surface-900 dark:text-surface-100">
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-surface-200/60 px-5 py-4 dark:border-surface-700/50 sm:px-6">
+            <div className="min-w-0">
+              <DialogPrimitive.Title className="truncate text-lg font-semibold text-surface-900 dark:text-surface-100">
                 {title}
               </DialogPrimitive.Title>
               {description ? (
@@ -40,11 +43,14 @@ export function Dialog({ open, onOpenChange, title, description, children, class
                 </DialogPrimitive.Description>
               ) : null}
             </div>
-            <DialogPrimitive.Close className="rounded-lg p-1 text-surface-400 hover:bg-surface-100 hover:text-surface-600 dark:hover:bg-surface-700 dark:hover:text-surface-300">
-              <X className="h-4 w-4" />
+            <DialogPrimitive.Close
+              aria-label="Close dialog"
+              className="shrink-0 rounded-xl border border-surface-200 p-2.5 text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-700 dark:border-surface-600 dark:text-surface-300 dark:hover:bg-surface-700"
+            >
+              <X className="h-5 w-5" />
             </DialogPrimitive.Close>
           </div>
-          {children}
+          <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">{children}</div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

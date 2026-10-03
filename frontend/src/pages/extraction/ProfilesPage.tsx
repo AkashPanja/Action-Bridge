@@ -262,7 +262,7 @@ export function ProfilesPage({ projectId }: { projectId: string }) {
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}
         title={editing ? `Edit Profile — ${editing.name}` : "New Extraction Profile"}
-        className="max-w-2xl">
+        className="sm:max-w-2xl">
         <div className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="Name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Invoices" />
