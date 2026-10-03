@@ -540,3 +540,84 @@ class TestWebhooks:
         await db_session.refresh(job)
         assert job.status == "failed"
         assert "private" in (job.error or "")
+
+
+# --- Rich prompt contract: schema-in-prompt, {value, confidence} merge ---
+
+RICH_TEXT = "Invoice INV-900\nTotal: 4200\nVendor missing here."
+RICH_DATA = {
+    "invoice_number": {"value": "INV-900", "confidence": 0.9},
+    "total_amount": {"value": 4200, "confidence": 0.85},
+    "vendor": {"value": None, "confidence": 0.0},
+    "warnings": ["vendor not found"],
+    "overall_confidence": 0.8,
+}
+RICH_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "invoice_number": {"type": "object"},
+        "total_amount": {"type": "object"},
+        "vendor": {"type": "object"},
+        "warnings": {"type": "array"},
+        "overall_confidence": {"type": "number"},
+    },
+    "required": ["invoice_number", "total_amount"],
+}
+
+
+class TestRichContract:
+    async def test_prompt_embeds_schema(self):
+        from app.models.extraction_profile import DEFAULT_PROMPTS
+
+        assert "{schema}" in DEFAULT_PROMPTS["extraction"]
+        assert "{text}" in DEFAULT_PROMPTS["extraction"]
+        assert "JSON" in DEFAULT_PROMPTS["extraction"]
+
+    async def test_pair_merge_min_rule(self):
+        from app.services.extraction import ground_signals, map_confidence
+
+        data = {
+            "invoice_number": {"value": "INV-900", "confidence": 0.9},
+            "total_amount": {"value": 4200, "confidence": 0.99},
+            "vendor": {"value": "Ghost Corp", "confidence": 0.95},
+        }
+        signals = ground_signals(data, RICH_TEXT)
+        assert signals["invoice_number"]["pair"] is True
+        assert signals["invoice_number"]["model_confidence"] == 0.9
+        scores = map_confidence(data, signals, {"found": 0.95, "not_found": 0.4, "retry_penalty": 0.0})
+        # grounded (0.95) capped by model (0.9)
+        assert scores["invoice_number"] == 0.9
+        # model says 0.99 but value IS in text -> min(0.99, 0.95)
+        assert scores["total_amount"] == 0.95
+        # model confident but value absent from text -> min(0.95, 0.4)
+        assert scores["vendor"] == 0.4
+
+    async def test_pair_in_table_row(self):
+        from app.services.extraction import ground_signals, map_confidence
+
+        data = {"items": [{"description": {"value": "Widget", "confidence": 0.9}, "qty": 2}]}
+        signals = ground_signals(data, "Widget x2")
+        scores = map_confidence(data, signals, {"found": 0.95, "not_found": 0.4, "retry_penalty": 0.0})
+        assert scores["items"] == [{"description": 0.9, "qty": 0.95}]
+
+    async def test_warnings_and_overall_in_meta(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        import json
+
+        from app.services import extraction as ext_mod
+
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid, name="Rich", schema=RICH_SCHEMA)
+        prov = await create_provider(client, admin_headers)
+        prof_id = await create_profile(client, admin_headers, pid, tid, prov)
+
+        profile = await db_session.get(ext_mod.ExtractionProfile, prof_id)
+        doc_type = await db_session.get(ext_mod.DocumentType, tid)
+        patch_adapter(monkeypatch, [json.dumps(RICH_DATA)])
+        result = await ext_mod.extract_one(db_session, profile, doc_type, RICH_TEXT)
+        assert result.meta["warnings"] == ["vendor not found"]
+        assert result.meta["overall_confidence"] == 0.8
+        # vendor pair: model 0.0 + absent -> min() floors at 0.0, still submittable
+        assert result.scores["vendor"] == 0.0
+        assert result.scores["invoice_number"] == 0.9

@@ -175,6 +175,12 @@ async def _submit_extracted(
         "latency_ms": meta.get("latency_ms"),
         "retries": meta.get("retries", 0),
     }
+    if meta.get("warnings"):
+        result.extraction_meta["warnings"] = meta["warnings"]
+    # Prefer the model's self-assessed overall score when it reports one.
+    if meta.get("overall_confidence") is not None:
+        result.confidence_score = meta["overall_confidence"]
+        result.extraction_meta["overall_confidence"] = meta["overall_confidence"]
     await db.commit()
     await db.refresh(result)
     return result.id

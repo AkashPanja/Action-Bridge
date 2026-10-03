@@ -157,7 +157,10 @@ async def extract_one(
             last_error = f"input_too_long for {provider.name}"
             continue
         adapter = await build_adapter(db, provider)
-        body = prompts["extraction"].replace("{text}", text)
+        # The schema travels IN the prompt text (small models often ignore
+        # response_format) as well as in the structured-output parameter.
+        body = prompts["extraction"].replace("{schema}", json.dumps(schema))
+        body = body.replace("{text}", text)
         messages = [
             {"role": "system", "content": prompts["system"]},
             {"role": "user", "content": body},
@@ -188,16 +191,20 @@ async def extract_one(
                 await log_call(db, provider, True, latency, result.tokens_in, result.tokens_out, job_id=job_id)
                 signals = ground_signals(data, text)
                 scores = map_confidence(data, signals, await _signal_map(db))
-                return ExtractResult(
-                    data=data, scores=scores, signals=signals,
-                    meta={
-                        "provider": provider.name, "model": provider.model,
-                        "prompt_version": profile.version,
-                        "tokens_in": result.tokens_in, "tokens_out": result.tokens_out,
-                        "latency_ms": latency, "retries": retries,
-                        "json_mode": result.json_mode,
-                    },
-                )
+                meta = {
+                    "provider": provider.name, "model": provider.model,
+                    "prompt_version": profile.version,
+                    "tokens_in": result.tokens_in, "tokens_out": result.tokens_out,
+                    "latency_ms": latency, "retries": retries,
+                    "json_mode": result.json_mode,
+                }
+                # Pass through model-reported extras when the schema asks for them.
+                if isinstance(data.get("warnings"), list):
+                    meta["warnings"] = [str(w) for w in data["warnings"]][:20]
+                overall = data.get("overall_confidence")
+                if isinstance(overall, (int, float)) and 0 <= overall <= 1:
+                    meta["overall_confidence"] = round(float(overall), 3)
+                return ExtractResult(data=data, scores=scores, signals=signals, meta=meta)
             await log_call(db, provider, False, latency, result.tokens_in, result.tokens_out,
                             "; ".join(issues), job_id=job_id)
             last_error = f"{provider.name}: {'; '.join(issues)}"
@@ -259,10 +266,51 @@ def _value_grounded(value: object, text_norm: str, text_raw_lower: str) -> bool:
     return str(value).strip().lower() in text_raw_lower
 
 
+def _is_confidence_pair(value: object) -> bool:
+    """Detect {value, confidence} model-reported fields (rich prompt contract)."""
+    return (
+        isinstance(value, dict)
+        and set(value.keys()) == {"value", "confidence"}
+        and isinstance(value.get("confidence"), (int, float))
+        and 0 <= value["confidence"] <= 1
+    )
+
+
+def _pair_signal(value: dict, text_norm: str, text_raw_lower: str) -> dict:
+    return {
+        "pair": True,
+        "model_confidence": float(value.get("confidence") or 0.0),
+        "found": _value_grounded(value.get("value"), text_norm, text_raw_lower),
+        "schema_ok": True,
+        "retries": 0,
+    }
+
+
 def _row_found(row_sig: dict) -> bool:
     if set(row_sig) == {"found", "schema_ok", "retries"}:
         return bool(row_sig.get("found"))
-    return any(c.get("found", False) for c in row_sig.values())
+    return any(
+        (c.get("model_confidence", 0) > 0 and c.get("found", False))
+        if isinstance(c, dict) and c.get("pair") else c.get("found", False)
+        for c in row_sig.values()
+    )
+
+
+def _child_signal(value: object, text_norm: str, text_raw_lower: str) -> dict:
+    if _is_confidence_pair(value):
+        return _pair_signal(value, text_norm, text_raw_lower)
+    return {"found": _value_grounded(value, text_norm, text_raw_lower),
+            "schema_ok": True, "retries": 0}
+
+
+def _children_found(children: dict) -> bool:
+    found = []
+    for child in children.values():
+        if isinstance(child, dict) and child.get("pair"):
+            found.append(bool(child.get("found")))
+        else:
+            found.append(bool(child.get("found", False)))
+    return any(found)
 
 
 def ground_signals(data: dict, text: str) -> dict:
@@ -271,18 +319,19 @@ def ground_signals(data: dict, text: str) -> dict:
     text_raw_lower = text.lower()
     signals: dict = {}
     for key, value in (data or {}).items():
-        if isinstance(value, dict):
-            children = {k: {"found": _value_grounded(v, text_norm, text_raw_lower),
-                            "schema_ok": True, "retries": 0}
+        if _is_confidence_pair(value):
+            signals[key] = _pair_signal(value, text_norm, text_raw_lower)
+        elif isinstance(value, dict):
+            children = {k: _child_signal(v, text_norm, text_raw_lower)
                         for k, v in value.items()}
-            signals[key] = {"children": children, "found": any(c["found"] for c in children.values()),
+            signals[key] = {"children": children, "found": _children_found(children),
                             "schema_ok": True, "retries": 0}
         elif isinstance(value, list):
             rows = []
             for row in value:
                 if isinstance(row, dict):
-                    rows.append({k: {"found": _value_grounded(v, text_norm, text_raw_lower),
-                                     "schema_ok": True, "retries": 0} for k, v in row.items()})
+                    rows.append({k: _child_signal(v, text_norm, text_raw_lower)
+                                 for k, v in row.items()})
                 else:
                     rows.append({"found": _value_grounded(row, text_norm, text_raw_lower),
                                  "schema_ok": True, "retries": 0})
@@ -299,7 +348,8 @@ def map_confidence(data: dict, signals: dict, signal_map: dict) -> dict:
     """Map grounding signals to the numeric per-field scores submit_document requires.
 
     Nested objects collapse to the mean of their leaf scores (R3); table arrays map
-    per row/column to match the existing confidence structure.
+    per row/column to match the existing confidence structure. Model-reported
+    {value, confidence} pairs merge conservatively: min(model, grounded).
     """
     high = signal_map.get("found", 0.95)
     low = signal_map.get("not_found", 0.4)
@@ -309,14 +359,21 @@ def map_confidence(data: dict, signals: dict, signal_map: dict) -> dict:
         base = high if found else low
         return round(max(0.0, min(1.0, base - penalty * retries)), 3)
 
+    def child_score(child: dict) -> float:
+        if isinstance(child, dict) and child.get("pair"):
+            merged = min(float(child.get("model_confidence", 0.0)),
+                         leaf_score(bool(child.get("found")), child.get("retries", 0)))
+            return round(max(0.0, min(1.0, merged)), 3)
+        return leaf_score(bool(child.get("found", False)), child.get("retries", 0))
+
     scores: dict = {}
     for key, value in (data or {}).items():
         sig = signals.get(key, {})
-        if isinstance(value, dict):
+        if isinstance(sig, dict) and sig.get("pair"):
+            scores[key] = child_score(sig)
+        elif isinstance(value, dict):
             children = sig.get("children", {})
-            child_scores = [leaf_score(children.get(k, {}).get("found", False),
-                                       children.get(k, {}).get("retries", 0))
-                            for k in value]
+            child_scores = [child_score(children.get(k, {})) for k in value]
             scores[key] = round(sum(child_scores) / len(child_scores), 3) if child_scores else low
         elif isinstance(value, list):
             rows = sig.get("rows", [])
@@ -325,8 +382,7 @@ def map_confidence(data: dict, signals: dict, signal_map: dict) -> dict:
                 if isinstance(row_sig, dict) and "found" in row_sig and len(row_sig) == 3 and set(row_sig) == {"found", "schema_ok", "retries"}:
                     mapped_rows.append(leaf_score(row_sig["found"], row_sig["retries"]))
                 else:
-                    mapped_rows.append({k: leaf_score(v.get("found", False), v.get("retries", 0))
-                                        for k, v in row_sig.items()})
+                    mapped_rows.append({k: child_score(v) for k, v in row_sig.items()})
             # submit_document expects list-of-dicts for table fields.
             scores[key] = [
                 r if isinstance(r, dict) else {"value": r} for r in mapped_rows
