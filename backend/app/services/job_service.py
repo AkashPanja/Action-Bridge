@@ -77,6 +77,7 @@ async def enqueue(
     project_id: str | None = None,
     provider_id: str | None = None,
     max_attempts: int = 3,
+    submission_id: str | None = None,
 ) -> Job:
     if kind not in HANDLERS:
         raise ValueError(f"Unknown job kind: {kind}")
@@ -85,6 +86,7 @@ async def enqueue(
         status="queued",
         payload=payload or {},
         project_id=project_id,
+        submission_id=submission_id,
         provider_id=provider_id,
         max_attempts=max_attempts,
     )
@@ -197,6 +199,10 @@ async def run_job(job_id: str) -> None:
             return
         try:
             result, usage = await handler(db, job)
+            # R36: a cancel issued mid-run wins — never overwrite a terminal state.
+            await db.refresh(job)
+            if job.status != "running":
+                return
             job.status = "succeeded"
             job.result = result
             job.usage = usage
@@ -204,6 +210,9 @@ async def run_job(job_id: str) -> None:
             job.finished_at = _utcnow()
             await db.commit()
         except Exception as exc:  # noqa: BLE001 - worker must never crash on job errors
+            await db.refresh(job)
+            if job.status not in ("running", "retrying"):
+                return  # cancelled meanwhile; leave the terminal state alone
             job.attempts += 1
             transient = getattr(exc, "transient", True)
             if transient and job.attempts < job.max_attempts:
@@ -218,11 +227,30 @@ async def run_job(job_id: str) -> None:
 
 
 async def requeue_running(db: AsyncSession) -> int:
-    """Jobs left running (e.g. after a restart) go back to queued (FR-9.4)."""
+    """Jobs left running (e.g. after a restart) go back to queued (FR-9.4).
+
+    Their in-flight files go back to pending too, otherwise crash recovery
+    leaves files stuck in "processing" that no future run will pick up.
+    """
+    from app.models.submission import SubmissionFile
+
+    stuck = (await db.execute(
+        select(Job.id, Job.submission_id).where(Job.status == "running")
+    )).all()
     result = await db.execute(
         update(Job)
         .where(Job.status == "running")
         .values(status="queued", started_at=None, next_retry_at=None)
     )
+    sub_ids = [row[1] for row in stuck if row[1]]
+    if sub_ids:
+        await db.execute(
+            update(SubmissionFile)
+            .where(
+                SubmissionFile.submission_id.in_(sub_ids),
+                SubmissionFile.status == "processing",
+            )
+            .values(status="pending")
+        )
     await db.commit()
     return result.rowcount or 0

@@ -620,6 +620,32 @@ class TestSubmissions:
         assert sub["files"][0]["status"] == "duplicate"
         assert sub["files"][0]["document_id"] == first_doc
 
+    async def test_inflight_duplicate_does_not_extract_twice(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        await create_profile(client, admin_headers, pid, tid, prov)
+        patch_adapter(monkeypatch, [INVOICE_JSON])
+        body = {
+            "document_type_id": tid,
+            "files": [{"filename": "inv.txt", "content_base64": b64(INVOICE_TEXT.encode())}],
+        }
+
+        first = (await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json=body)).json()
+        second = (await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json=body)).json()
+        # Neither processed yet: second must defer to the in-flight first.
+        sub = (await client.get(f"/api/v1/submissions/{second['submission_id']}", headers=admin_headers)).json()
+        assert sub["files"][0]["status"] == "duplicate"
+        assert "being processed" in (sub["files"][0]["skip_reason"] or "")
+        assert sub["files"][0]["document_id"] is None
+
+        await run_claimed_job(first["job_id"], db_session)
+        await run_claimed_job(second["job_id"], db_session)
+        docs = (await client.get(f"/api/v1/projects/{pid}/documents", headers=admin_headers)).json()
+        assert len(docs) == 1
+
     async def test_job_list_enriched_with_files(
         self, client: AsyncClient, admin_headers, db_session, monkeypatch
     ):
@@ -1019,3 +1045,186 @@ class TestAllFilesFailed:
         job = (await client.get(f"/api/v1/jobs/{job_id}", headers=admin_headers)).json()
         assert job["status"] == "succeeded"
         assert job["result"]["document_ids"] == []
+
+
+class TestPipelineRobustness:
+    async def test_combined_failure_persists_statuses(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        """R5: combined-mode failure must not leave files stuck in processing."""
+        from app.models.submission import SubmissionFile
+        from sqlalchemy import select
+
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        prof_id = (await client.post(f"/api/v1/projects/{pid}/profiles", headers=admin_headers, json={
+            "name": "combo", "mode": "combined",
+            "candidate_types": [], "target_document_type_id": tid,
+            "provider_chain": [prov], "allow_cloud": False,
+        })).json()["id"]
+        # Adapter always returns invalid JSON -> validation fails on both attempts.
+        patch_adapter(monkeypatch, ["not json at all"])
+        resp = await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json={
+            "profile_id": prof_id,
+            "files": [{"filename": "a.txt", "content_base64": b64(b"hello world")}],
+        })
+        job_id = resp.json()["job_id"]
+        sub_id = resp.json()["submission_id"]
+        await run_claimed_job(job_id, db_session)
+
+        job = (await client.get(f"/api/v1/jobs/{job_id}", headers=admin_headers)).json()
+        assert job["status"] == "failed"
+        files = (await db_session.execute(
+            select(SubmissionFile).where(SubmissionFile.submission_id == sub_id)
+        )).scalars().all()
+        assert files and all(f.status == "failed" for f in files)
+
+    async def test_retry_reprocesses_failed_files(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        """R17: a retried job must re-attempt failed files, not succeed empty."""
+        from app.services import extraction as ext_mod
+        from app.services import job_service
+
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        await create_profile(client, admin_headers, pid, tid, prov)
+
+        calls = {"n": 0}
+        real_extract = ext_mod.extract_one
+
+        async def flaky(db, profile, doc_type, text, job_id=None):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                from app.services.llm.base import ProviderError
+                raise ProviderError("timeout", transient=True)
+            return await real_extract(db, profile, doc_type, text, job_id)
+
+        monkeypatch.setattr(ext_mod, "extract_one", flaky)
+        resp = await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json={
+            "document_type_id": tid,
+            "files": [{"filename": "a.txt", "content_base64": b64(INVOICE_TEXT.encode())}],
+            "idempotency_key": "retry-reprocess",
+        }, )
+        # Patch the profile chain adapter for the successful attempt.
+        patch_adapter(monkeypatch, [INVOICE_JSON])
+        job_id = resp.json()["job_id"]
+
+        claimed = await job_service.claim_next(db_session)
+        await job_service.run_job(claimed.id)
+        state = (await client.get(f"/api/v1/jobs/{job_id}", headers=admin_headers)).json()
+        assert state["status"] == "retrying"
+
+        # Make the retry due now (backoff would otherwise delay it).
+        from sqlalchemy import update
+        from app.models.job import Job as JobModel
+
+        async with job_service.AsyncSessionLocal() as fresh_db:
+            await fresh_db.execute(
+                update(JobModel).where(JobModel.id == job_id).values(next_retry_at=None)
+            )
+            await fresh_db.commit()
+
+        # Retry run must pick the file up again and succeed with a document.
+        claimed = await job_service.claim_next(db_session)
+        assert claimed is not None and claimed.id == job_id
+        await job_service.run_job(claimed.id)
+        final = (await client.get(f"/api/v1/jobs/{job_id}", headers=admin_headers)).json()
+        assert final["status"] == "succeeded"
+        assert len(final["result"]["document_ids"]) == 1
+
+    async def test_cancel_wins_over_completion(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        """R36: cancelling mid-run must survive the handler finishing."""
+        import asyncio
+
+        from app.services import job_service
+
+        async def slow_ping(db, job):
+            await asyncio.sleep(0.2)
+            return {"echo": "late"}, {}
+
+        monkeypatch.setitem(job_service.HANDLERS, "ping", slow_ping)
+        job = await job_service.enqueue(db_session, "ping", {})
+        claimed = await job_service.claim_next(db_session)
+        task = asyncio.create_task(job_service.run_job(claimed.id))
+        await asyncio.sleep(0.05)
+        await job_service.cancel_job(db_session, job)
+        await task
+        await db_session.refresh(job)
+        assert job.status == "cancelled"
+
+    async def test_requeue_resets_processing_files(
+        self, client: AsyncClient, admin_headers, db_session
+    ):
+        """R38: crash recovery must reset in-flight files to pending."""
+        from sqlalchemy import select, update
+        from app.models.submission import SubmissionFile
+        from app.services import job_service
+
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        prof = await create_profile(client, admin_headers, pid, tid, prov)
+        from app.services import pipeline as pipe_mod
+
+        sub = await pipe_mod.intake_files(db_session, pid, "api", [("a.txt", b"hello world")],
+                                          profile_id=prof)
+        job = await job_service.enqueue(db_session, "extract", {"submission_id": sub.id},
+                                        project_id=pid, submission_id=sub.id)
+        claimed = await job_service.claim_next(db_session)
+        assert claimed.id == job.id
+        # Simulate crash: worker dies with job running, file marked processing.
+        await db_session.execute(
+            update(SubmissionFile)
+            .where(SubmissionFile.submission_id == sub.id)
+            .values(status="processing")
+        )
+        await db_session.commit()
+        revived = await job_service.requeue_running(db_session)
+        assert revived == 1
+        files = (await db_session.execute(
+            select(SubmissionFile).where(SubmissionFile.submission_id == sub.id)
+        )).scalars().all()
+        assert [f.status for f in files] == ["pending"]
+        job2 = await db_session.get(type(job), job.id)
+        assert job2.status == "queued"
+
+    async def test_throttle_serializes_provider_calls(self):
+        """R8: max_concurrency=1 means the second call waits for the first."""
+        import asyncio as _aio
+
+        from app.services.extraction import THROTTLES
+
+        order: list[str] = []
+
+        async def worker(name: str, hold: float):
+            async with THROTTLES.get("prov-1", 1):
+                order.append(f"{name}-in")
+                await _aio.sleep(hold)
+                order.append(f"{name}-out")
+
+        await _aio.gather(worker("a", 0.05), worker("b", 0.0))
+        assert order == ["a-in", "a-out", "b-in", "b-out"]
+
+    async def test_webhook_refuses_default_secret(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        """R10: never sign webhooks with placeholder secrets."""
+        from app.services import job_service
+
+        monkeypatch.setattr("app.config.settings.app_encryption_key", "")
+        monkeypatch.setattr(
+            "app.config.settings.secret_key",
+            "change-me-in-production-use-a-long-random-string",
+        )
+        job = await job_service.enqueue(db_session, "webhook",
+                                        {"url": "https://example.com/hook", "body": {}})
+        claimed = await job_service.claim_next(db_session)
+        await job_service.run_job(claimed.id)
+        await db_session.refresh(job)
+        assert job.status == "failed"
+        assert "signing secret" in (job.error or "")

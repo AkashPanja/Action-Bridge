@@ -1,5 +1,6 @@
 """Extraction pipeline orchestration: intake, submission processing, webhooks (M2)."""
 
+import asyncio
 import hashlib
 import hmac
 import time
@@ -17,7 +18,6 @@ from app.services import document_service, extraction, ingestion, job_service
 from app.services.extraction import ExtractionFailed
 
 WEBHOOK_TIMEOUT_S = 10
-WEBHOOK_TRIES = 3
 
 
 # --- Intake ---
@@ -41,6 +41,21 @@ async def _find_duplicate_doc(db: AsyncSession, project_id: str, sha256: str) ->
     )
     row = result.first()
     return row[0] if row else None
+
+
+async def _find_inflight_duplicate(db: AsyncSession, project_id: str, sha256: str) -> bool:
+    """Same hash already queued or processing in this project (no document yet)."""
+    result = await db.execute(
+        select(SubmissionFile.id)
+        .join(Submission, Submission.id == SubmissionFile.submission_id)
+        .where(
+            Submission.project_id == project_id,
+            SubmissionFile.sha256 == sha256,
+            SubmissionFile.status.in_(["pending", "processing"]),
+        )
+        .limit(1)
+    )
+    return result.first() is not None
 
 
 async def intake_files(
@@ -73,28 +88,47 @@ async def intake_files(
     db.add(submission)
     await db.flush()
 
-    for filename, content in files:
-        record = ingestion.store_upload(filename, content, submission.id)
-        accepted, reason = ingestion.filter_file(record["filename"], record["size"], max_mb)
-        status, skip_reason, linked_doc = "pending", None, None
-        if not accepted:
-            status, skip_reason = "skipped", reason
+    stored_paths: list[str] = []
+    try:
+        for filename, content in files:
+            record = ingestion.store_upload(filename, content, submission.id)
+            stored_paths.append(record["storage_path"])
+            accepted, reason = ingestion.filter_file(record["filename"], record["size"], max_mb)
+            status, skip_reason, linked_doc = "pending", None, None
+            if not accepted:
+                status, skip_reason = "skipped", reason
         else:
             linked_doc = await _find_duplicate_doc(db, project_id, record["sha256"])
             if linked_doc:
                 status = "duplicate"
                 skip_reason = "duplicate file — already processed, see linked document"
-        db.add(SubmissionFile(
-            submission_id=submission.id,
-            filename=record["filename"],
-            mime=record["mime"],
-            size=record["size"],
-            sha256=record["sha256"],
-            storage_path=record["storage_path"],
-            status=status,
-            skip_reason=skip_reason,
-            document_id=linked_doc,
-        ))
+            elif await _find_inflight_duplicate(db, project_id, record["sha256"]):
+                # Same bytes already queued/processing (e.g. double-clicked upload):
+                # don't extract twice; the first run's document will serve both.
+                status = "duplicate"
+                skip_reason = "duplicate file — same file already being processed"
+            db.add(SubmissionFile(
+                submission_id=submission.id,
+                filename=record["filename"],
+                mime=record["mime"],
+                size=record["size"],
+                sha256=record["sha256"],
+                storage_path=record["storage_path"],
+                status=status,
+                skip_reason=skip_reason,
+                document_id=linked_doc,
+            ))
+    except Exception:
+        # R14: intake holds no DB rows yet (single commit below), but files are
+        # already on disk — remove them so a failed intake leaves no orphans.
+        import os as _os
+
+        for path in stored_paths:
+            try:
+                _os.remove(path)
+            except OSError:
+                pass
+        raise
     # Stash the requested type for auto mode (not a column; carried via note-free path).
     if document_type_id and not profile_id:
         submission.note = ((submission.note or "") + f" [auto_type:{document_type_id}]").strip()
@@ -319,11 +353,40 @@ async def process_submission(db: AsyncSession, submission_id: str, job_id: str |
         select(SubmissionFile).where(SubmissionFile.submission_id == submission.id)
         .order_by(SubmissionFile.created_at.asc())
     )).scalars().all()
+    # R17: retries must re-attempt failed files, otherwise a retried job finds
+    # nothing pending and "succeeds" empty. Permanent failures simply fail again
+    # (bounded by max_attempts); skips/duplicates are never touched.
+    # "processing" files are always safe to reset: they prove no worker holds
+    # them (a new run only starts after claim), covering crashes and
+    # non-ExtractionFailed exits that bypass per-file status updates.
+    reset_statuses = {"processing"}
+    if job_id:
+        job = await db.get(Job, job_id)
+        if job and job.attempts > 0:
+            reset_statuses.add("failed")
+    reset = 0
+    for f in files:
+        if f.status in reset_statuses:
+            f.status = "pending"
+            f.skip_reason = None
+            reset += 1
+    if reset:
+        await db.commit()
     pending = [f for f in files if f.status == "pending"]
     document_ids: list[str] = []
 
     if active.mode == "combined":
-        document_ids = await _process_combined(db, submission, active, pending, actor, job_id)
+        try:
+            document_ids = await _process_combined(db, submission, active, pending, actor, job_id)
+        except ExtractionFailed as exc:
+            # R5: files that went into the failed extraction must not stay
+            # "processing" forever — mark them failed with the reason.
+            for sfile in pending:
+                if sfile.status == "processing":
+                    sfile.status = "failed"
+                    sfile.skip_reason = f"{exc.reason}: {exc}"[:255]
+            await db.commit()
+            raise
     else:
         for sfile in pending:
             try:
@@ -359,7 +422,7 @@ async def _process_one_file(
         return None
 
     try:
-        text, _ = await _file_text(db, sfile, profile, job_id)
+        text, ocr_meta = await _file_text(db, sfile, profile, job_id)
     except ExtractionFailed as exc:
         if exc.reason in ("needs_manual_entry",):
             target = await _target_type(db, profile, usable[0].get("document_type_id"))
@@ -398,6 +461,8 @@ async def _process_one_file(
         return None
 
     result = await extraction.extract_one(db, profile, doc_type, text, job_id)
+    if ocr_meta:
+        result.meta["ocr"] = ocr_meta
     doc_id = await _submit_extracted(
         db, submission.project_id, doc_type, result.data, result.scores,
         result.signals, result.meta, submission, actor,
@@ -430,10 +495,11 @@ async def _process_combined(
 
     parts: list[str] = []
     usable_files: list[SubmissionFile] = []
+    ocr_metas: list[dict] = []
     for i, sfile in enumerate(files, 1):
         sfile.status = "processing"
         try:
-            text, _ = await _file_text(db, sfile, profile, job_id)
+            text, file_ocr = await _file_text(db, sfile, profile, job_id)
         except ExtractionFailed as exc:
             if exc.reason in ("needs_manual_entry",):
                 parts.append(f"=== FILE {i}: {sfile.filename} ===\n[UNREADABLE: needs manual entry]")
@@ -444,11 +510,15 @@ async def _process_combined(
             continue
         parts.append(f"=== FILE {i}: {sfile.filename} ===\n{text}")
         usable_files.append(sfile)
+        if file_ocr:
+            ocr_metas.append({"file": sfile.filename, **file_ocr})
     if not parts:
         await db.commit()
         return []
 
     result = await extraction.extract_one(db, profile, target, "\n\n".join(parts), job_id)
+    if ocr_metas:
+        result.meta["ocr_files"] = ocr_metas
     doc_id = await _submit_extracted(
         db, submission.project_id, target, result.data, result.scores,
         result.signals, result.meta, submission, actor,
@@ -462,11 +532,31 @@ async def _process_combined(
 
 # --- Job handlers ---
 
+# Spec section 10: one local GPU job at a time. Extract jobs serialize here
+# (in addition to per-provider THROTTLES in extraction.py) because concurrent
+# extractions wedge on single-GPU/HDD boxes: SQLite writer contention plus
+# Ollama request pileup stalls every in-flight job with no error surfacing.
+# Cloud-scale parallelism needs DB advisory locks instead (hardening).
+_EXTRACT_SEMAPHORE: asyncio.Semaphore | None = None
+
+
+def _extract_gate() -> asyncio.Semaphore:
+    global _EXTRACT_SEMAPHORE
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if _EXTRACT_SEMAPHORE is None or getattr(_EXTRACT_SEMAPHORE, "_loop", None) is not loop:
+        _EXTRACT_SEMAPHORE = asyncio.Semaphore(1)
+    return _EXTRACT_SEMAPHORE
+
+
 async def _extract_handler(db: AsyncSession, job: Job):
     submission_id = (job.payload or {}).get("submission_id")
     if not submission_id:
         raise ExtractionFailed("Extract job missing submission_id.", reason="bad_payload")
-    outcome = await process_submission(db, submission_id, job.id)
+    async with _extract_gate():
+        outcome = await process_submission(db, submission_id, job.id)
     callback_url = (job.payload or {}).get("callback_url")
     if callback_url:
         project_id = (await db.get(Job, job.id)).project_id or ""
@@ -510,7 +600,13 @@ async def _webhook_handler(db: AsyncSession, job: Job):
         raise ExtractionFailed("Webhook job missing url.", reason="bad_payload")
     if ingestion.is_private_url(url):
         raise ExtractionFailed("Webhook URL is private.", reason="bad_url")
-    await send_webhook(url, body, settings.app_encryption_key or settings.secret_key)
+    secret = settings.app_encryption_key or settings.secret_key
+    if not secret or secret == "change-me-in-production-use-a-long-random-string":
+        raise ExtractionFailed(
+            "Webhook signing secret is not configured (set APP_ENCRYPTION_KEY or SECRET_KEY).",
+            reason="no_signing_secret",
+        )
+    await send_webhook(url, body, secret)
     return {"delivered": True}, {}
 
 

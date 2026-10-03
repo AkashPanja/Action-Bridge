@@ -1,5 +1,6 @@
 """LLM extraction: classification, schema-bound extraction, grounding (spec 5.7)."""
 
+import asyncio
 import json
 import re
 import time
@@ -21,6 +22,31 @@ ASSUMED_WINDOW = 8192
 OUTPUT_RESERVE = 2048
 
 DEFAULT_SIGNAL_MAP = {"found": 0.95, "not_found": 0.4, "retry_penalty": 0.15}
+
+
+class _ProviderThrottles:
+    """Per-provider concurrency limits (FR-3.2: local GPU defaults to 1).
+
+    In-process only (single worker / dev server). Multi-process deployments
+    need DB advisory locks instead — tracked for hardening.
+    Semaphores are re-created when the event loop or limit changes so tests
+    (one loop per test) and live reloads never reuse a stale semaphore.
+    """
+
+    def __init__(self):
+        self._entries: dict[str, tuple[object, int, asyncio.Semaphore]] = {}
+
+    def get(self, provider_id: str, limit: int) -> asyncio.Semaphore:
+        loop = asyncio.get_running_loop()
+        limit = max(int(limit or 1), 1)
+        entry = self._entries.get(provider_id)
+        if entry is None or entry[0] is not loop or entry[1] != limit:
+            entry = (loop, limit, asyncio.Semaphore(limit))
+            self._entries[provider_id] = entry
+        return entry[2]
+
+
+THROTTLES = _ProviderThrottles()
 
 
 class ExtractionFailed(RuntimeError):
@@ -107,13 +133,14 @@ async def classify(
         adapter = await build_adapter(db, provider)
         started = time.perf_counter()
         try:
-            result = await adapter.complete(LlmRequest(
-                messages=[
-                    {"role": "system", "content": _prompts(profile)["system"]},
-                    {"role": "user", "content": prompt},
-                ],
-                timeout_s=provider.timeout_s,
-            ))
+            async with THROTTLES.get(provider.id, provider.max_concurrency):
+                result = await adapter.complete(LlmRequest(
+                    messages=[
+                        {"role": "system", "content": _prompts(profile)["system"]},
+                        {"role": "user", "content": prompt},
+                    ],
+                    timeout_s=provider.timeout_s,
+                ))
             latency = int((time.perf_counter() - started) * 1000)
             await log_call(db, provider, True, latency, result.tokens_in, result.tokens_out, job_id=job_id)
         except ProviderError as exc:
@@ -170,9 +197,10 @@ async def extract_one(
         for attempt in (1, 2):
             started = time.perf_counter()
             try:
-                result = await adapter.complete(LlmRequest(
-                    messages=list(messages), schema=use_schema, timeout_s=provider.timeout_s,
-                ))
+                async with THROTTLES.get(provider.id, provider.max_concurrency):
+                    result = await adapter.complete(LlmRequest(
+                        messages=list(messages), schema=use_schema, timeout_s=provider.timeout_s,
+                    ))
                 latency = int((time.perf_counter() - started) * 1000)
             except ProviderError as exc:
                 latency = int((time.perf_counter() - started) * 1000)
@@ -646,14 +674,15 @@ async def ocr_transcribe(
     adapter = await build_adapter(db, provider)
     started = time.perf_counter()
     try:
-        result = await adapter.complete(LlmRequest(
-            messages=[{"role": "user",
-                       "content": "Transcribe this document page to Markdown. "
-                                  "Copy all text exactly; describe tables as Markdown tables. "
-                                  "No commentary, transcription only."}],
-            images=images,
-            timeout_s=provider.timeout_s,
-        ))
+        async with THROTTLES.get(provider.id, provider.max_concurrency):
+            result = await adapter.complete(LlmRequest(
+                messages=[{"role": "user",
+                           "content": "Transcribe this document page to Markdown. "
+                                      "Copy all text exactly; describe tables as Markdown tables. "
+                                      "No commentary, transcription only."}],
+                images=images,
+                timeout_s=provider.timeout_s,
+            ))
         latency = int((time.perf_counter() - started) * 1000)
     except ProviderError as exc:
         latency = int((time.perf_counter() - started) * 1000)

@@ -191,7 +191,17 @@ async def playground(
             raise HTTPException(status_code=400, detail="Playground file must be under 5 MB")
         filename = file.filename or filename
         record = ingestion.store_upload(filename, raw, f"playground-{profile.id}")
-        content, source, _ = ingestion.acquire_text(record["storage_path"], record["mime"])
+        try:
+            content, source, _ = ingestion.acquire_text(record["storage_path"], record["mime"])
+        finally:
+            # R21: playground must not accumulate files on disk.
+            import os as _os
+
+            for suffix in ("", ".txt"):
+                try:
+                    _os.remove(record["storage_path"] + suffix)
+                except OSError:
+                    pass
         if not content:
             return PlaygroundResponse(errors=[f"no extractable text ({source})"])
     if not content.strip():

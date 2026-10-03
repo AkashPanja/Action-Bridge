@@ -17,6 +17,7 @@ from app.services import ingestion, job_service, pipeline
 router = APIRouter(prefix="/api/v1/projects/{project_id}/extract", tags=["Extract"])
 
 MAX_WAIT_SECONDS = 60
+MAX_FILES_PER_SUBMISSION = 50
 
 
 async def _authorize(project_id: str, db: AsyncSession, auth) -> tuple[str | None, str | None]:
@@ -64,6 +65,11 @@ async def _submit_batch(
         raise HTTPException(status_code=400, detail="callback_url targets a private address")
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
+    if len(files) > MAX_FILES_PER_SUBMISSION:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many files (max {MAX_FILES_PER_SUBMISSION} per submission)",
+        )
 
     user_id, api_key_id = await _authorize(project_id, db, auth)
 
@@ -84,18 +90,17 @@ async def _submit_batch(
         db, "extract",
         {"submission_id": submission.id, "callback_url": callback_url},
         project_id=project_id,
+        submission_id=submission.id,
     )
-    job.submission_id = submission.id
-    await db.commit()
-    await db.refresh(job)
     return await _maybe_wait(db, job, wait_seconds, project_id)
 
 
 async def _maybe_wait(db: AsyncSession, job: Job, wait_seconds: int, project_id: str):
     wait_seconds = max(0, min(wait_seconds or 0, MAX_WAIT_SECONDS))
     if wait_seconds:
-        deadline = asyncio.get_event_loop().time() + wait_seconds
-        while asyncio.get_event_loop().time() < deadline:
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + wait_seconds
+        while loop.time() < deadline:
             if job.status in ("succeeded", "failed", "cancelled"):
                 break
             await asyncio.sleep(1)
