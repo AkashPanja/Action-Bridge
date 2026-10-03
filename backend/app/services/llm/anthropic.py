@@ -13,6 +13,27 @@ from app.services.llm.base import LlmAdapter, LlmRequest, LlmResult, ProviderErr
 ANTHROPIC_VERSION = "2023-06-01"
 
 
+def _image_block(img: str) -> dict:
+    """Build an Anthropic image content block, validating the input."""
+    if not isinstance(img, str) or not img:
+        raise ValueError("image must be a non-empty string")
+    if img.startswith("data:"):
+        try:
+            header, b64 = img.split(",", 1)
+            mime = header.split(";")[0].split(":")[1]
+        except (ValueError, IndexError) as exc:
+            raise ValueError("malformed data URI") from exc
+        if not mime.startswith("image/") or not b64:
+            raise ValueError("data URI must carry image/* base64 content")
+        return {
+            "type": "image",
+            "source": {"type": "base64", "media_type": mime, "data": b64},
+        }
+    if not img.startswith(("http://", "https://")):
+        raise ValueError("URL images must be http(s)")
+    return {"type": "image", "source": {"type": "url", "url": img}}
+
+
 class AnthropicAdapter(LlmAdapter):
     def __init__(self, base_url: str, model: str, api_key: str | None = None):
         self.base_url = (base_url or "https://api.anthropic.com").rstrip("/")
@@ -35,15 +56,12 @@ class AnthropicAdapter(LlmAdapter):
                     if content:
                         parts.append({"type": "text", "text": content})
                     for img in request.images:
-                        if img.startswith("data:"):
-                            header, b64 = img.split(",", 1)
-                            mime = header.split(";")[0].split(":")[1]
-                            parts.append({
-                                "type": "image",
-                                "source": {"type": "base64", "media_type": mime, "data": b64},
-                            })
-                        else:
-                            parts.append({"type": "image", "source": {"type": "url", "url": img}})
+                        try:
+                            parts.append(_image_block(img))
+                        except ValueError as exc:
+                            raise ProviderError(
+                                f"Unusable image input: {exc}", transient=False
+                            ) from exc
                     messages.append({"role": "user", "content": parts})
                 else:
                     messages.append({"role": m.get("role", "user"), "content": content})

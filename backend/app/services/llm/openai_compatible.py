@@ -4,11 +4,17 @@ Structured-output strategy (FR-1.3): json_schema -> json_object -> prompt-only.
 """
 
 import json
+import re
 import time
 
 import httpx
 
 from app.services.llm.base import LlmAdapter, LlmRequest, LlmResult, ProviderError
+
+# Reasoning models reject non-default sampling params (e.g. OpenAI o-series
+# only accepts temperature=1, DeepSeek-R1 rejects temperature entirely), so
+# temperature is omitted for them and the server default applies.
+_FIXED_TEMPERATURE_RE = re.compile(r"^(o1|o3|o4)([\W_]|$)|deepseek-reasoner", re.IGNORECASE)
 
 
 class OpenAiCompatibleAdapter(LlmAdapter):
@@ -79,8 +85,9 @@ class OpenAiCompatibleAdapter(LlmAdapter):
         payload: dict = {
             "model": self.model,
             "messages": request.messages,
-            "temperature": 0,
         }
+        if not _FIXED_TEMPERATURE_RE.search(self.model or ""):
+            payload["temperature"] = 0
         if mode == "json_schema" and request.schema:
             payload["response_format"] = {
                 "type": "json_schema",
