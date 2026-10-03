@@ -26,9 +26,9 @@ describe("fieldsToSchema", () => {
     ];
     const schema = fieldsToSchema(fields) as Record<string, unknown>;
     const props = schema.properties as Record<string, unknown>;
-    expect(props.age).toEqual({ type: "number", title: "Age" });
+    expect(props.age).toEqual({ type: ["number", "null"], title: "Age" });
     expect(props.active).toEqual({ type: "boolean", title: "Active" });
-    expect(props.dob).toEqual({ type: "string", title: "Date of Birth", format: "date" });
+    expect(props.dob).toEqual({ type: ["string", "null"], title: "Date of Birth", format: "date" });
     expect(schema.required).toEqual(["active"]);
   });
 
@@ -68,7 +68,7 @@ describe("fieldsToSchema", () => {
         type: "object",
         properties: {
           sku: { type: "string", title: "SKU" },
-          qty: { type: "number", title: "Quantity" },
+          qty: { type: ["number", "null"], title: "Quantity" },
         },
         required: ["sku"],
       },

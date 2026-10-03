@@ -49,8 +49,14 @@ export function fieldsToValidationRules(fields: FieldDefinition[]): Record<strin
 }
 
 export function fieldsToSchema(fields: FieldDefinition[]): Record<string, unknown> {
+  // Convention (matches the extraction contract): required fields are strict,
+  // optional fields are nullable unions so models may return null for missing
+  // values without failing validation.
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
+
+  const withNull = (base: string, isRequired: boolean): string | string[] =>
+    isRequired ? base : [base, "null"];
 
   for (const field of fields) {
     if (!field.key) continue;
@@ -60,14 +66,15 @@ export function fieldsToSchema(fields: FieldDefinition[]): Record<string, unknow
       const itemRequired: string[] = [];
       for (const col of field.columns ?? []) {
         if (!col.key) continue;
-        const p: Record<string, unknown> = { type: col.type, title: col.title || col.key };
+        const p: Record<string, unknown> = { title: col.title || col.key };
         if (col.type === "enum" && col.enumValues.length > 0) {
-          p.type = "string";
+          p.type = withNull("string", col.required);
           p.enum = col.enumValues;
-        }
-        if (col.type === "date") {
-          p.type = "string";
+        } else if (col.type === "date") {
+          p.type = withNull("string", col.required);
           p.format = "date";
+        } else {
+          p.type = withNull(col.type, col.required);
         }
         itemProps[col.key] = p;
         if (col.required) itemRequired.push(col.key);
@@ -79,14 +86,15 @@ export function fieldsToSchema(fields: FieldDefinition[]): Record<string, unknow
       continue;
     }
 
-    const prop: Record<string, unknown> = { type: field.type, title: field.title || field.key };
+    const prop: Record<string, unknown> = { title: field.title || field.key };
     if (field.type === "enum" && field.enumValues.length > 0) {
-      prop.type = "string";
+      prop.type = withNull("string", field.required);
       prop.enum = field.enumValues;
-    }
-    if (field.type === "date") {
-      prop.type = "string";
+    } else if (field.type === "date") {
+      prop.type = withNull("string", field.required);
       prop.format = "date";
+    } else {
+      prop.type = withNull(field.type, field.required);
     }
     properties[field.key] = prop;
     if (field.required) required.push(field.key);
@@ -108,9 +116,18 @@ export function schemaToFields(
   const required = (schema.required as string[]) ?? [];
   const fields: FieldDefinition[] = [];
 
+  // baseType unwraps nullable unions (["string", "null"]) back to "string"
+  const baseType = (t: unknown): string => {
+    if (Array.isArray(t)) {
+      const found = t.find((x) => x !== "null");
+      return typeof found === "string" ? found : "string";
+    }
+    return (t as string) ?? "string";
+  };
+
   for (const [key, val] of Object.entries(properties)) {
     const prop = val as Record<string, unknown>;
-    const type = (prop.type as string) ?? "string";
+    const type = baseType(prop.type);
     const enumValues = (prop.enum as string[]) ?? [];
     const format = prop.format as string;
     if (type === "array") {
@@ -121,7 +138,7 @@ export function schemaToFields(
         const columns: FieldDefinition[] = [];
         for (const [colKey, colVal] of Object.entries(itemProps)) {
           const colProp = colVal as Record<string, unknown>;
-          const colType = (colProp.type as string) ?? "string";
+          const colType = baseType(colProp.type);
           const colEnum = (colProp.enum as string[]) ?? [];
           const colFormat = colProp.format as string;
           let colFieldType: FieldDefinition["type"] = "string";

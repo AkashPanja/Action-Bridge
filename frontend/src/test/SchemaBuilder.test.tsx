@@ -94,3 +94,53 @@ describe("SchemaBuilder", () => {
     expect(screen.getByText(/1 columns?/i)).toBeInTheDocument();
   });
 });
+
+describe("schema nullability (extraction contract)", () => {
+  it("emits nullable unions for optional fields, strict for required", async () => {
+    const { fieldsToSchema } = await import("../components/schema/types");
+    const schema = fieldsToSchema([
+      { key: "invoice_number", type: "string", title: "No", required: true, enumValues: [] },
+      { key: "vendor_gstin", type: "string", title: "GSTIN", required: false, enumValues: [] },
+      { key: "total_amount", type: "number", title: "Total", required: true, enumValues: [] },
+      { key: "discount", type: "number", title: "Disc", required: false, enumValues: [] },
+    ]) as { properties: Record<string, { type: unknown }>; required: string[] };
+    expect(schema.properties.invoice_number.type).toBe("string");
+    expect(schema.properties.vendor_gstin.type).toEqual(["string", "null"]);
+    expect(schema.properties.total_amount.type).toBe("number");
+    expect(schema.properties.discount.type).toEqual(["number", "null"]);
+    expect(schema.required).toEqual(["invoice_number", "total_amount"]);
+  });
+
+  it("emits nullable unions for optional table columns", async () => {
+    const { fieldsToSchema } = await import("../components/schema/types");
+    const schema = fieldsToSchema([
+      {
+        key: "items", type: "table", title: "Items", required: false, enumValues: [],
+        columns: [
+          { key: "description", type: "string", title: "Desc", required: true, enumValues: [] },
+          { key: "hsn_sac", type: "string", title: "HSN", required: false, enumValues: [] },
+        ],
+      },
+    ]) as { properties: Record<string, { items: { properties: Record<string, { type: unknown }> } }> };
+    const cols = schema.properties.items.items.properties;
+    expect(cols.description.type).toBe("string");
+    expect(cols.hsn_sac.type).toEqual(["string", "null"]);
+  });
+
+  it("round-trips nullable unions back to optional fields", async () => {
+    const { schemaToFields, fieldsToSchema } = await import("../components/schema/types");
+    const schema = {
+      type: "object",
+      properties: {
+        name: { type: "string", title: "Name" },
+        nick: { type: ["string", "null"], title: "Nick" },
+      },
+      required: ["name"],
+    };
+    const fields = schemaToFields(schema);
+    expect(fields.find((f) => f.key === "name")?.required).toBe(true);
+    expect(fields.find((f) => f.key === "nick")?.required).toBe(false);
+    const back = fieldsToSchema(fields) as { properties: Record<string, { type: unknown }> };
+    expect(back.properties.nick.type).toEqual(["string", "null"]);
+  });
+});
