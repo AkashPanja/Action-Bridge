@@ -319,6 +319,15 @@ async def process_submission(db: AsyncSession, submission_id: str, job_id: str |
                 sfile.status = "failed"
                 sfile.skip_reason = f"{exc.reason}: {exc}"[:255]
         await db.commit()
+    existing_docs = [f.document_id for f in files if f.document_id]
+    if not document_ids and not existing_docs:
+        failed = [f for f in files if f.status == "failed"]
+        if failed:
+            reasons = "; ".join(f"{f.filename}: {f.skip_reason}" for f in failed)[:500]
+            raise ExtractionFailed(
+                f"No documents produced. {len(failed)} file(s) failed: {reasons}",
+                reason="all_files_failed",
+            )
     return {"submission_id": submission.id, "document_ids": document_ids}
 
 

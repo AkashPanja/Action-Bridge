@@ -919,3 +919,48 @@ class TestMinScore:
         assert _min_score({"overall_confidence": 0.2, "warnings": [{"value": 0.1}],
                            "total_amount": 0.95}) == 0.95
         assert _min_score({"overall_confidence": 0.2}) is None
+
+
+class TestAllFilesFailed:
+    async def test_job_fails_with_reason(
+        self, client: AsyncClient, admin_headers, db_session, monkeypatch
+    ):
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        await create_profile(client, admin_headers, pid, tid, prov)
+        # Never schema-valid: wrong types that no retry can fix.
+        patch_adapter(monkeypatch, ['{"invoice_number": 123, "total_amount": "lots"}'])
+
+        resp = await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json={
+            "document_type_id": tid,
+            "files": [{"filename": "bad.txt", "content_base64": b64(b"junk")}],
+        })
+        job_id = resp.json()["job_id"]
+        await run_claimed_job(job_id, db_session)
+
+        job = (await client.get(f"/api/v1/jobs/{job_id}", headers=admin_headers)).json()
+        assert job["status"] == "failed"
+        assert "all_files_failed" in (job["error"] or "") or "No documents produced" in (job["error"] or "")
+
+        docs = (await client.get(f"/api/v1/projects/{pid}/documents", headers=admin_headers)).json()
+        assert docs == []
+
+    async def test_all_skipped_stays_succeeded(
+        self, client: AsyncClient, admin_headers, db_session
+    ):
+        pid = await create_project(client, admin_headers)
+        tid = await create_doc_type(client, admin_headers, pid)
+        prov = await create_provider(client, admin_headers)
+        await create_profile(client, admin_headers, pid, tid, prov)
+
+        resp = await client.post(f"/api/v1/projects/{pid}/extract/json", headers=admin_headers, json={
+            "document_type_id": tid,
+            "files": [{"filename": "run.exe", "content_base64": b64(b"junk")}],
+        })
+        job_id = resp.json()["job_id"]
+        await run_claimed_job(job_id, db_session)
+
+        job = (await client.get(f"/api/v1/jobs/{job_id}", headers=admin_headers)).json()
+        assert job["status"] == "succeeded"
+        assert job["result"]["document_ids"] == []
