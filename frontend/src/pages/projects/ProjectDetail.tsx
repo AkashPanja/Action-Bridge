@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { FileType, Inbox, Key, LayoutDashboard, ScanSearch, Users, Workflow } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { AnimatedPage } from "../../components/shared/AnimatedPage";
 import { PageHeader } from "../../components/shared/PageHeader";
@@ -20,7 +20,7 @@ export function ProjectDetail() {
   const [searchParams] = useSearchParams();
   const { data: project } = useProject(projectId!);
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "dashboard");
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -35,6 +35,12 @@ export function ProjectDetail() {
       ? [{ id: "api-keys", label: "API Keys", icon: Key }]
       : []),
   ];
+
+  // Follow ?tab= navigation (e.g. from breadcrumbs); ignore unknown tabs.
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && tabs.some((tab) => tab.id === t)) setActiveTab(t);
+  }, [searchParams]);
 
   return (
     <AnimatedPage>

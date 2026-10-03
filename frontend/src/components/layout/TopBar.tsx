@@ -116,14 +116,30 @@ export function TopBar({ onMenuClick = () => {} }: { onMenuClick?: () => void })
     setPwLoading(false);
   }
 
+  // Tab slugs inside a project are UI tabs, not routes — link them to
+  // the project page with ?tab= so breadcrumbs never land on NotFound.
+  const TAB_SLUGS = new Set([
+    "dashboard",
+    "documents",
+    "document-types",
+    "members",
+    "jobs",
+    "profiles",
+  ]);
   const crumbs = location.pathname
     .split("/")
     .filter(Boolean)
-    .map((seg, i, arr) => ({
-      label: seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-      href: "/" + arr.slice(0, i + 1).join("/"),
-      current: i === arr.length - 1,
-    }));
+    .map((seg, i, arr) => {
+      let href = "/" + arr.slice(0, i + 1).join("/");
+      if (arr[0] === "projects" && arr.length >= 3 && i === 2 && TAB_SLUGS.has(seg)) {
+        href = `/projects/${arr[1]}?tab=${seg}`;
+      }
+      return {
+        label: seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        href,
+        current: i === arr.length - 1,
+      };
+    });
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-surface-200/60 bg-white/50 px-4 backdrop-blur-xl dark:border-surface-700/50 dark:bg-surface-900/50 md:px-6">
