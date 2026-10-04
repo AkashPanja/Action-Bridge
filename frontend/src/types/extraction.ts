@@ -6,6 +6,65 @@ export interface Credential {
   hint: string;
 }
 
+export interface EmailTriggerFilters {
+  sender?: string;
+  subject_pattern?: string;
+  body_pattern?: string;
+  must_have_attachment?: boolean;
+  allowed_types?: string[];
+  max_attachment_mb?: number | null;
+  received_after?: string | null;
+}
+
+export interface EmailTrigger {
+  id: string;
+  project_id: string;
+  name: string;
+  type: string;
+  credential_id: string | null;
+  profile_id: string | null;
+  mode_override: "per_attachment" | "combined" | null;
+  config: {
+    folder?: string;
+    poll_interval_s?: number;
+    filters?: EmailTriggerFilters;
+    after_action?: { mark_read?: boolean; move_to_folder?: string | null };
+    import_window?: string;
+  };
+  enabled: boolean;
+  state: {
+    last_uid?: number;
+    initialized?: boolean;
+    consecutive_failures?: number;
+    alert?: boolean;
+    last_run_at?: string | null;
+    last_error?: string | null;
+    next_due_at?: string | null;
+  };
+}
+
+export interface TriggerRun {
+  id: string;
+  trigger_id: string;
+  started_at: string | null;
+  finished_at: string | null;
+  seen: number;
+  matched: number;
+  submissions_created: number;
+  jobs_enqueued: number;
+  error: string | null;
+  dry_run: boolean;
+}
+
+export interface TriggerDryRun {
+  seen: number;
+  matched: number;
+  submissions_created: number;
+  jobs_enqueued: number;
+  matches: { uid: string; from: string; subject: string; attachments: string[] }[];
+  error: string | null;
+}
+
 export interface Provider {
   id: string;
   name: string;

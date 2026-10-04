@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { FileType, Inbox, Key, LayoutDashboard, ScanSearch, Users, Workflow } from "lucide-react";
+import { FileType, Inbox, Key, LayoutDashboard, Mail, ScanSearch, Users, Workflow } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { AnimatedPage } from "../../components/shared/AnimatedPage";
@@ -14,6 +14,7 @@ import { MembersPage } from "../MembersPage";
 import { ProjectDashboard } from "../ProjectDashboard";
 import { JobsPage } from "../extraction/JobsPage";
 import { ProfilesPage } from "../extraction/ProfilesPage";
+import { TriggersPage } from "../extraction/TriggersPage";
 
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -29,7 +30,10 @@ export function ProjectDetail() {
     { id: "members", label: "Members", icon: Users },
     { id: "jobs", label: "Jobs", icon: Workflow },
     ...(user && (user.role === "admin" || user.role === "editor")
-      ? [{ id: "profiles", label: "Extraction", icon: ScanSearch }]
+      ? [
+          { id: "profiles", label: "Extraction", icon: ScanSearch },
+          { id: "triggers", label: "Triggers", icon: Mail },
+        ]
       : []),
     ...(user && can(user.role, "api_keys:manage")
       ? [{ id: "api-keys", label: "API Keys", icon: Key }]
@@ -89,6 +93,8 @@ export function ProjectDetail() {
             <JobsPage projectId={projectId!} />
           ) : activeTab === "profiles" ? (
             <ProfilesPage projectId={projectId!} />
+          ) : activeTab === "triggers" ? (
+            <TriggersPage projectId={projectId!} />
           ) : (
             <ApiKeys />
           )}

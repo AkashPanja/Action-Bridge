@@ -253,10 +253,10 @@ export function DocumentInbox({ projectId }: Props) {
                   <Card
                     hover
                     onClick={() => navigate(`/projects/${projectId}/documents/${doc.id}`)}
-                    className="flex flex-1 items-center gap-4 px-5 py-4"
+                    className="flex flex-1 items-center gap-3 px-4 py-2.5"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
-                      <FileText className="h-5 w-5" />
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
+                      <FileText className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">

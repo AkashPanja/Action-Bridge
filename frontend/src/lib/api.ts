@@ -1,6 +1,7 @@
 import type { Document, DocumentType, Project, RegexPattern } from "../types";
 import type {
   Credential,
+  EmailTrigger,
   ExtractionProfile,
   Job,
   PlaygroundResult,
@@ -10,6 +11,8 @@ import type {
   ProviderPreset,
   ProviderTestResult,
   Submission,
+  TriggerDryRun,
+  TriggerRun,
 } from "../types/extraction";
 
 const BASE_URL = "/api/v1";
@@ -79,13 +82,13 @@ export const api = {
       request<DocumentType>(`/projects/${projectId}/document-types/${typeId}`),
     create: (
       projectId: string,
-      data: { name: string; schema_definition: Record<string, unknown>; validation_rules?: Record<string, unknown> }
+      data: { name: string; schema_definition: Record<string, unknown>; validation_rules?: Record<string, unknown>; confidence_threshold?: number }
     ) =>
       request<DocumentType>(`/projects/${projectId}/document-types`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    update: (projectId: string, typeId: string, data: Partial<{ name: string; schema_definition: Record<string, unknown>; validation_rules: Record<string, unknown> }>) =>
+    update: (projectId: string, typeId: string, data: Partial<{ name: string; schema_definition: Record<string, unknown>; validation_rules: Record<string, unknown>; confidence_threshold: number }>) =>
       request<DocumentType>(`/projects/${projectId}/document-types/${typeId}`, {
         method: "PATCH",
         body: JSON.stringify(data),
@@ -245,6 +248,40 @@ export const api = {
     },
     retry: (id: string) => request<Job>(`/jobs/${id}/retry`, { method: "POST" }),
     cancel: (id: string) => request<Job>(`/jobs/${id}/cancel`, { method: "POST" }),
+  },
+  triggers: {
+    list: (projectId: string) =>
+      request<EmailTrigger[]>(`/projects/${projectId}/triggers`),
+    create: (projectId: string, data: Record<string, unknown>) =>
+      request<EmailTrigger>(`/projects/${projectId}/triggers`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (projectId: string, id: string, data: Record<string, unknown>) =>
+      request<EmailTrigger>(`/projects/${projectId}/triggers/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    remove: (projectId: string, id: string) =>
+      request<void>(`/projects/${projectId}/triggers/${id}`, { method: "DELETE" }),
+    dryRun: (projectId: string, id: string) =>
+      request<TriggerDryRun>(`/projects/${projectId}/triggers/${id}/test`, {
+        method: "POST",
+      }),
+    runNow: (projectId: string, id: string) =>
+      request<TriggerDryRun>(`/projects/${projectId}/triggers/${id}/run`, {
+        method: "POST",
+      }),
+    pause: (projectId: string, id: string) =>
+      request<EmailTrigger>(`/projects/${projectId}/triggers/${id}/pause`, {
+        method: "POST",
+      }),
+    resume: (projectId: string, id: string) =>
+      request<EmailTrigger>(`/projects/${projectId}/triggers/${id}/resume`, {
+        method: "POST",
+      }),
+    runs: (projectId: string, id: string) =>
+      request<TriggerRun[]>(`/projects/${projectId}/triggers/${id}/runs`),
   },
   submissions: {
     get: (id: string) => request<Submission>(`/submissions/${id}`),

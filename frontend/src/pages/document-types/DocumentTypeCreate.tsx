@@ -29,6 +29,7 @@ export function DocumentTypeCreateDialog({ projectId, open, onOpenChange }: Prop
   const [tab, setTab] = useState<"visual" | "advanced">("visual");
   const [schema, setSchema] = useState<Record<string, unknown>>(INVOICE_SCHEMA);
   const [jsonText, setJsonText] = useState(JSON.stringify(INVOICE_SCHEMA, null, 2));
+  const [threshold, setThreshold] = useState("0.95");
   const [error, setError] = useState("");
   const createDocType = useCreateDocumentType(projectId);
 
@@ -89,9 +90,15 @@ export function DocumentTypeCreateDialog({ projectId, open, onOpenChange }: Prop
     }
 
     try {
+      const t = parseFloat(threshold);
+      if (Number.isNaN(t) || t < 0 || t > 1) {
+        setError("Confidence threshold must be between 0 and 1.");
+        return;
+      }
       await createDocType.mutateAsync({
         name: name.trim(),
         schema_definition: finalSchema,
+        confidence_threshold: t,
       });
       setName("");
       setSchema(INVOICE_SCHEMA);
@@ -157,6 +164,17 @@ export function DocumentTypeCreateDialog({ projectId, open, onOpenChange }: Prop
         )}
 
         {error ? <p className="text-xs text-accent-500">{error}</p> : null}
+
+        <Input
+          label="Required confidence to auto-approve (mandatory fields must score ≥ this)"
+          type="number"
+          min="0"
+          max="1"
+          step="0.01"
+          value={threshold}
+          onChange={(e) => setThreshold(e.target.value)}
+          id="doc-type-threshold"
+        />
 
         <p className="text-xs text-surface-400">Validation rules can be added after creating the document type.</p>
 

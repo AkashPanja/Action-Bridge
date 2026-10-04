@@ -31,10 +31,17 @@ async def _validate_refs(db: AsyncSession, project_id: str, data: dict):
     mode = data.get("mode")
     if mode is not None and mode not in PROFILE_MODES:
         raise HTTPException(status_code=400, detail=f"mode must be one of {PROFILE_MODES}")
+    seen_names: set[str] = set()
     for cand in data.get("candidate_types") or []:
         tid = cand.get("document_type_id") if isinstance(cand, dict) else getattr(cand, "document_type_id", None)
         if not tid:
             raise HTTPException(status_code=400, detail="candidate_types entries need document_type_id")
+        name = (cand.get("name") if isinstance(cand, dict) else getattr(cand, "name", "")) or ""
+        lowered = name.strip().lower()
+        if lowered:
+            if lowered in seen_names:
+                raise HTTPException(status_code=400, detail=f"Duplicate candidate name: {name!r}")
+            seen_names.add(lowered)
         dtype = await db.get(DocumentType, tid)
         if not dtype or dtype.project_id != project_id:
             raise HTTPException(status_code=400, detail="Candidate type not in this project")

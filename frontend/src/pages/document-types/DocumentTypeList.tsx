@@ -44,8 +44,8 @@ export function DocumentTypeList({ projectId: propProjectId }: Props) {
   const cloneDocType = useCloneDocumentType(projectId);
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [editingDocType, setEditingDocType] = useState<{ id: string; name: string; schema_definition: Record<string, unknown>; validation_rules?: Record<string, unknown> | null } | null>(null);
-  const [rulesDocType, setRulesDocType] = useState<{ id: string; name: string; schema_definition: Record<string, unknown>; validation_rules?: Record<string, unknown> | null } | null>(null);
+  const [editingDocType, setEditingDocType] = useState<{ id: string; name: string; schema_definition: Record<string, unknown>; validation_rules?: Record<string, unknown> | null; confidence_threshold?: number | null } | null>(null);
+  const [rulesDocType, setRulesDocType] = useState<{ id: string; name: string; schema_definition: Record<string, unknown>; validation_rules?: Record<string, unknown> | null; confidence_threshold?: number | null } | null>(null);
   const [subscriptions, setSubscriptions] = useState<Record<string, string[]>>({});
   const [subLoading, setSubLoading] = useState(false);
 
@@ -159,6 +159,7 @@ export function DocumentTypeList({ projectId: propProjectId }: Props) {
                       <p className="text-xs text-surface-400">
                         {fieldCount(dt.schema_definition)} fields
                         {dt.document_count != null ? ` · ${dt.document_count} document${dt.document_count !== 1 ? "s" : ""}` : ""}
+                        {dt.confidence_threshold != null ? ` · auto-approve ≥ ${dt.confidence_threshold}` : ""}
                       </p>
                     </div>
                     <Badge variant="default">
@@ -167,7 +168,7 @@ export function DocumentTypeList({ projectId: propProjectId }: Props) {
                     {canWrite ? (
                       <>
                         <button
-                          onClick={() => setEditingDocType({ id: dt.id, name: dt.name, schema_definition: dt.schema_definition, validation_rules: dt.validation_rules })}
+                          onClick={() => setEditingDocType({ id: dt.id, name: dt.name, schema_definition: dt.schema_definition, validation_rules: dt.validation_rules, confidence_threshold: dt.confidence_threshold })}
                           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-surface-400 transition-all hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-900/20"
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -183,7 +184,7 @@ export function DocumentTypeList({ projectId: propProjectId }: Props) {
                           <Copy className="h-3.5 w-3.5" />
                         </button>
                         <button
-                          onClick={() => setRulesDocType({ id: dt.id, name: dt.name, schema_definition: dt.schema_definition, validation_rules: dt.validation_rules })}
+                          onClick={() => setRulesDocType({ id: dt.id, name: dt.name, schema_definition: dt.schema_definition, validation_rules: dt.validation_rules, confidence_threshold: dt.confidence_threshold })}
                           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-surface-400 transition-all hover:bg-emerald-50 hover:text-emerald-500 dark:hover:bg-emerald-900/20"
                         >
                           <ShieldCheck className="h-3.5 w-3.5" />
@@ -274,7 +275,7 @@ export function DocumentTypeList({ projectId: propProjectId }: Props) {
       <DocumentTypeEditDialog
         key={editingDocType?.id ?? "none"}
         projectId={projectId}
-        docType={editingDocType ? { id: editingDocType.id, name: editingDocType.name, schema_definition: editingDocType.schema_definition, validation_rules: editingDocType.validation_rules } : null}
+        docType={editingDocType ? { id: editingDocType.id, name: editingDocType.name, schema_definition: editingDocType.schema_definition, validation_rules: editingDocType.validation_rules, confidence_threshold: editingDocType.confidence_threshold } : null}
         onClose={() => setEditingDocType(null)}
       />
       <ValidationRulesDialog

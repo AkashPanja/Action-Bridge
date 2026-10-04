@@ -97,16 +97,16 @@ async def intake_files(
             status, skip_reason, linked_doc = "pending", None, None
             if not accepted:
                 status, skip_reason = "skipped", reason
-        else:
-            linked_doc = await _find_duplicate_doc(db, project_id, record["sha256"])
-            if linked_doc:
-                status = "duplicate"
-                skip_reason = "duplicate file — already processed, see linked document"
-            elif await _find_inflight_duplicate(db, project_id, record["sha256"]):
-                # Same bytes already queued/processing (e.g. double-clicked upload):
-                # don't extract twice; the first run's document will serve both.
-                status = "duplicate"
-                skip_reason = "duplicate file — same file already being processed"
+            else:
+                linked_doc = await _find_duplicate_doc(db, project_id, record["sha256"])
+                if linked_doc:
+                    status = "duplicate"
+                    skip_reason = "duplicate file — already processed, see linked document"
+                elif await _find_inflight_duplicate(db, project_id, record["sha256"]):
+                    # Same bytes already queued/processing (e.g. double-clicked upload):
+                    # don't extract twice; the first run's document will serve both.
+                    status = "duplicate"
+                    skip_reason = "duplicate file — same file already being processed"
             db.add(SubmissionFile(
                 submission_id=submission.id,
                 filename=record["filename"],
@@ -195,6 +195,40 @@ def _synthetic_profile(doc_type: DocumentType, providers: list[LlmProvider]) -> 
 
 # --- Document hand-off ---
 
+def _field_scores(value: object) -> list[float]:
+    """Numeric confidence values inside one field's score entry (a scalar
+    for plain fields, a list of per-cell dicts for table fields)."""
+    out: list[float] = []
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        out.append(float(value))
+    elif isinstance(value, list):
+        for row in value:
+            if isinstance(row, dict):
+                out.extend(
+                    float(v) for v in row.values()
+                    if isinstance(v, (int, float)) and not isinstance(v, bool)
+                )
+    return out
+
+
+def _required_min_score(scores: dict, required: list[str]) -> float | None:
+    """Lowest confidence across REQUIRED schema fields only.
+
+    Returns None when a required field has no numeric score (missing data
+    can never auto-approve). With no required fields, falls back to the
+    minimum over all scored fields (previous behavior).
+    """
+    if not required:
+        return _min_score(scores)
+    flat: list[float] = []
+    for name in required:
+        vals = _field_scores((scores or {}).get(name))
+        if not vals:
+            return None
+        flat.extend(vals)
+    return min(flat) if flat else None
+
+
 def _min_score(scores: dict) -> float | None:
     """Lowest numeric score across fields and table cells (None when empty).
 
@@ -233,13 +267,25 @@ async def _submit_extracted(
 
     settings = await processing_service.get_settings(db)
     try:
-        threshold = float(settings.get("auto_approve_threshold", 0.92))
+        global_threshold = float(settings.get("auto_approve_threshold", 0.92))
     except (TypeError, ValueError):
-        threshold = 0.92
-    lowest = _min_score(scores)
+        global_threshold = 0.92
+    # Per-type bar (editable on the document type, default 0.95); the global
+    # processing setting is the fallback for types created before it existed.
+    threshold = getattr(doc_type, "confidence_threshold", None)
+    if threshold is None:
+        threshold = global_threshold
+    required = (doc_type.schema_definition or {}).get("required") or []
+    lowest = _required_min_score(scores, list(required))
     # FR-8.1b: high-confidence extractions skip forced review. Empty scores
     # (manual entry), failing threshold, or validation issues still route to humans.
-    force_review = lowest is None or threshold <= 0 or lowest < threshold
+    # A non-positive threshold (global or per-type) disables auto-approve.
+    force_review = (
+        lowest is None
+        or global_threshold <= 0
+        or threshold <= 0
+        or lowest < threshold
+    )
     result = await document_service.submit_document(
         db, project_id, doc_type.id, data, scores, actor,
         force_pending_review=force_review,
@@ -259,6 +305,7 @@ async def _submit_extracted(
         "retries": meta.get("retries", 0),
         "min_score": lowest,
         "auto_approve_threshold": threshold,
+        "required_fields": list(required),
         "auto_approved": result.status == "approved",
     }
     if meta.get("warnings"):
@@ -338,7 +385,10 @@ async def _file_text(
 
 # --- Submission processing ---
 
-async def process_submission(db: AsyncSession, submission_id: str, job_id: str | None = None) -> dict:
+async def process_submission(
+    db: AsyncSession, submission_id: str, job_id: str | None = None,
+    mode_override: str | None = None,
+) -> dict:
     submission = await db.get(Submission, submission_id)
     if not submission:
         raise ExtractionFailed("Submission not found.", reason="no_submission")
@@ -347,6 +397,9 @@ async def process_submission(db: AsyncSession, submission_id: str, job_id: str |
     if profile is None and auto_type is None:
         raise ExtractionFailed("No extraction profile or document type.", reason="no_profile")
     active = profile or _synthetic_profile(auto_type, auto_providers)
+    # Trigger-level override wins for this run only — never mutate the stored
+    # profile (a commit below would otherwise persist the override permanently).
+    mode = mode_override if mode_override in ("per_attachment", "combined") else active.mode
     actor = "extractor"
 
     files = (await db.execute(
@@ -375,7 +428,7 @@ async def process_submission(db: AsyncSession, submission_id: str, job_id: str |
     pending = [f for f in files if f.status == "pending"]
     document_ids: list[str] = []
 
-    if active.mode == "combined":
+    if mode == "combined":
         try:
             document_ids = await _process_combined(db, submission, active, pending, actor, job_id)
         except ExtractionFailed as exc:
@@ -555,8 +608,9 @@ async def _extract_handler(db: AsyncSession, job: Job):
     submission_id = (job.payload or {}).get("submission_id")
     if not submission_id:
         raise ExtractionFailed("Extract job missing submission_id.", reason="bad_payload")
+    mode_override = (job.payload or {}).get("mode_override")
     async with _extract_gate():
-        outcome = await process_submission(db, submission_id, job.id)
+        outcome = await process_submission(db, submission_id, job.id, mode_override=mode_override)
     callback_url = (job.payload or {}).get("callback_url")
     if callback_url:
         project_id = (await db.get(Job, job.id)).project_id or ""

@@ -18,6 +18,7 @@ async def create_document_type(
         name=data.name,
         schema_definition=data.schema_definition,
         validation_rules=data.validation_rules,
+        confidence_threshold=data.confidence_threshold,
     )
     db.add(doc_type)
     await db.commit()
@@ -36,6 +37,7 @@ async def clone_document_type(
         name=new_name,
         schema_definition=source.schema_definition,
         validation_rules=source.validation_rules,
+        confidence_threshold=source.confidence_threshold,
     )
     db.add(doc_type)
     await db.commit()

@@ -1,6 +1,7 @@
 """LLM extraction: classification, schema-bound extraction, grounding (spec 5.7)."""
 
 import asyncio
+import difflib
 import json
 import re
 import time
@@ -101,6 +102,53 @@ def _fits(provider: LlmProvider, input_tokens: int) -> bool:
     return input_tokens + OUTPUT_RESERVE <= window
 
 
+def _normalize_answer(text: str) -> str:
+    """Reduce a free-form model reply to a comparable type name.
+
+    Handles quotes, code fences, JSON wrappers ({"type": "X"}), "type: X" /
+    "answer: X" prefixes, trailing punctuation, and case differences.
+    """
+    t = (text or "").strip()
+    # Fenced or quoted blocks: ```json {...} ``` / "Invoice" / 'Invoice'
+    if t.startswith("```"):
+        t = t.strip("`").strip()
+        if t.lower().startswith("json"):
+            t = t[4:].strip()
+    if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'":
+        t = t[1:-1].strip()
+    # {"type": "Invoice"} / {"answer": "Invoice"}
+    if t.startswith("{"):
+        try:
+            obj = json.loads(t)
+            if isinstance(obj, dict):
+                for key in ("type", "answer", "category", "document_type"):
+                    if isinstance(obj.get(key), str):
+                        t = obj[key]
+                        break
+        except ValueError:
+            pass
+    # "type: Invoice" / "answer - Invoice"
+    m = re.match(r"^(?:type|answer|category|document type|classification)\s*[:\-]\s*(.+)$", t, re.IGNORECASE)
+    if m:
+        t = m.group(1).strip().strip("\"'")
+    # Trailing sentence punctuation, but keep meaningful dots inside names.
+    t = t.rstrip(".,!;:").strip().strip("\"'")
+    return t.lower()
+
+
+def _match_candidate(normalized: str, allowed: list[str]) -> tuple[str | None, float]:
+    """Match a normalized answer to a candidate. Returns (name, confidence).
+
+    Exact match scores 1.0; close spelling scores 0.7; no match is None.
+    """
+    if normalized in [a.lower() for a in allowed]:
+        return next(a for a in allowed if a.lower() == normalized), 1.0
+    close = difflib.get_close_matches(normalized, [a.lower() for a in allowed], n=1, cutoff=0.8)
+    if close:
+        return next(a for a in allowed if a.lower() == close[0]), 0.7
+    return None, 0.0
+
+
 async def classify(
     db: AsyncSession,
     profile: ExtractionProfile,
@@ -114,9 +162,21 @@ async def classify(
     """Constrained classification. Returns (document_type_id | None, meta).
 
     None means `other`/ignore — the caller marks the file skipped.
+    Malformed candidate entries are ignored; duplicate names resolve to the
+    first entry (duplicates are rejected at profile save time).
+    meta always carries a confidence: 1.0 exact, 0.85 exact-after-retry,
+    0.7 fuzzy, 0.0 unparseable.
     """
-    names = [c["name"] for c in candidates]
-    by_name = {c["name"]: c["document_type_id"] for c in candidates}
+    usable = [
+        c for c in candidates
+        if isinstance(c, dict) and c.get("name") and c.get("document_type_id")
+    ]
+    if not usable:
+        raise ExtractionFailed("No usable classification candidates.", reason="no_candidates")
+    names = [c["name"] for c in usable]
+    by_name: dict[str, str] = {}
+    for c in usable:
+        by_name.setdefault(c["name"], c["document_type_id"])
     allowed = names + ["other"]
     excerpt = text[:4000]
     last_error = "no usable provider"
@@ -130,33 +190,67 @@ async def classify(
             subject=subject or "-",
             text=excerpt,
         )
+        messages = [
+            {"role": "system", "content": _prompts(profile)["system"]},
+            {"role": "user", "content": prompt},
+        ]
         adapter = await build_adapter(db, provider)
-        started = time.perf_counter()
-        try:
-            async with THROTTLES.get(provider.id, provider.max_concurrency):
-                result = await adapter.complete(LlmRequest(
-                    messages=[
-                        {"role": "system", "content": _prompts(profile)["system"]},
-                        {"role": "user", "content": prompt},
-                    ],
-                    timeout_s=provider.timeout_s,
-                ))
-            latency = int((time.perf_counter() - started) * 1000)
-            await log_call(db, provider, True, latency, result.tokens_in, result.tokens_out, job_id=job_id)
-        except ProviderError as exc:
-            latency = int((time.perf_counter() - started) * 1000)
-            await log_call(db, provider, False, latency, None, None, str(exc), job_id=job_id)
-            last_error = str(exc)
+        answer_text: str | None = None
+        latency = 0
+        for attempt in (1, 2):
+            started = time.perf_counter()
+            try:
+                async with THROTTLES.get(provider.id, provider.max_concurrency):
+                    result = await adapter.complete(LlmRequest(
+                        messages=list(messages),
+                        timeout_s=provider.timeout_s,
+                    ))
+                latency = int((time.perf_counter() - started) * 1000)
+                await log_call(db, provider, True, latency, result.tokens_in, result.tokens_out, job_id=job_id)
+                answer_text = result.text
+                break
+            except ProviderError as exc:
+                latency = int((time.perf_counter() - started) * 1000)
+                await log_call(db, provider, False, latency, None, None, str(exc), job_id=job_id)
+                last_error = str(exc)
+                answer_text = None
+                break
+        if answer_text is None:
             continue
-        answer = result.text.strip().strip('"').lower()
-        for name in allowed:
-            if answer == name.lower():
-                meta = {"provider": provider.name, "model": provider.model,
-                        "latency_ms": latency, "raw_answer": result.text.strip()}
-                if name == "other":
-                    return None, meta
-                return by_name[name], meta
-        last_error = f"unparseable classification: {result.text.strip()[:100]}"
+        normalized = _normalize_answer(answer_text)
+        match, confidence = _match_candidate(normalized, allowed)
+        if match is None:
+            # One strict re-ask before giving up on this provider.
+            started = time.perf_counter()
+            try:
+                async with THROTTLES.get(provider.id, provider.max_concurrency):
+                    retry = await adapter.complete(LlmRequest(
+                        messages=messages + [{
+                            "role": "user",
+                            "content": "Reply with ONLY one of these exact words, nothing else: "
+                                       + ", ".join(f'"{n}"' for n in allowed),
+                        }],
+                        timeout_s=provider.timeout_s,
+                    ))
+                latency += int((time.perf_counter() - started) * 1000)
+                await log_call(db, provider, True, latency, retry.tokens_in, retry.tokens_out, job_id=job_id)
+            except ProviderError as exc:
+                await log_call(db, provider, False, latency, None, None, str(exc), job_id=job_id)
+                last_error = str(exc)
+                continue
+            normalized = _normalize_answer(retry.text)
+            retry_match, retry_conf = _match_candidate(normalized, allowed)
+            if retry_match is None:
+                last_error = f"unparseable classification: {answer_text.strip()[:100]}"
+                continue
+            # Second attempt succeeded: cap confidence below a first-try exact.
+            match, confidence = retry_match, min(retry_conf, 0.85)
+        meta = {"provider": provider.name, "model": provider.model,
+                "latency_ms": latency, "raw_answer": answer_text.strip(),
+                "confidence": confidence}
+        if match == "other":
+            return None, meta
+        return by_name[match], meta
     raise ExtractionFailed(f"Classification failed: {last_error}", reason="classification_failed")
 
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class BulkIds(BaseModel):
@@ -13,6 +13,7 @@ class DocumentTypeCreate(BaseModel):
     name: str
     schema_definition: dict
     validation_rules: dict | None = None
+    confidence_threshold: float = Field(default=0.95, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
     def validate_schema(self):
@@ -26,6 +27,7 @@ class DocumentTypeUpdate(BaseModel):
     name: str | None = None
     schema_definition: dict | None = None
     validation_rules: dict | None = None
+    confidence_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class DocumentTypeResponse(BaseModel):
@@ -36,6 +38,7 @@ class DocumentTypeResponse(BaseModel):
     name: str
     schema_definition: dict
     validation_rules: dict | None
+    confidence_threshold: float = 0.95
     created_at: datetime
     updated_at: datetime
     document_count: int | None = None

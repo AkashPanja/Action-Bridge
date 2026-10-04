@@ -20,6 +20,7 @@ from .provider_call import ProviderCall
 from .extraction_profile import ExtractionProfile
 from .submission import Submission, SubmissionFile
 from .prompt_template import PromptTemplate
+from .email_trigger import EmailTrigger, TriggerRun
 
 __all__ = [
     "Base", "Project", "ProjectMembership", "DocumentType",
@@ -29,4 +30,5 @@ __all__ = [
     "AppSetting", "RegexPattern",
     "Credential", "LlmProvider", "ProcessingSetting", "Job", "ProviderCall",
     "ExtractionProfile", "Submission", "SubmissionFile", "PromptTemplate",
+    "EmailTrigger", "TriggerRun",
 ]

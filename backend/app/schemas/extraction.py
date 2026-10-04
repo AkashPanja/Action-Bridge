@@ -252,7 +252,6 @@ class ExtractCompleted(BaseModel):
 
 
 # --- Submissions ---
-
 class SubmissionFileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -277,3 +276,85 @@ class SubmissionResponse(BaseModel):
     idempotency_key: str | None = None
     note: str | None = None
     files: list[SubmissionFileResponse] = []
+
+
+# --- Email triggers ---
+
+class TriggerFilters(BaseModel):
+    sender: str = ""
+    subject_pattern: str = ""
+    body_pattern: str = ""
+    must_have_attachment: bool = True
+    allowed_types: list[str] = []
+    max_attachment_mb: float | None = None
+    received_after: str | None = None
+
+
+class TriggerAfterAction(BaseModel):
+    mark_read: bool = True
+    move_to_folder: str | None = None
+
+
+class TriggerConfig(BaseModel):
+    folder: str = "INBOX"
+    poll_interval_s: int = 300
+    filters: TriggerFilters = TriggerFilters()
+    after_action: TriggerAfterAction = TriggerAfterAction()
+    import_window: str = "7d"
+
+
+class TriggerCreate(BaseModel):
+    name: str
+    credential_id: str | None = None
+    profile_id: str | None = None
+    mode_override: str | None = None
+    config: TriggerConfig = TriggerConfig()
+    enabled: bool = True
+
+
+class TriggerUpdate(BaseModel):
+    name: str | None = None
+    credential_id: str | None = None
+    profile_id: str | None = None
+    mode_override: str | None = None
+    config: TriggerConfig | None = None
+    enabled: bool | None = None
+
+
+class TriggerResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    project_id: str
+    name: str
+    type: str = "email"
+    credential_id: str | None = None
+    profile_id: str | None = None
+    mode_override: str | None = None
+    config: dict = {}
+    enabled: bool = True
+    state: dict = {}
+
+
+class TriggerRunResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    trigger_id: str
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    seen: int = 0
+    matched: int = 0
+    submissions_created: int = 0
+    jobs_enqueued: int = 0
+    error: str | None = None
+    dry_run: bool = False
+
+
+class TriggerDryRunResponse(BaseModel):
+    seen: int = 0
+    matched: int = 0
+    submissions_created: int = 0
+    jobs_enqueued: int = 0
+    matches: list[dict] = []
+    error: str | None = None

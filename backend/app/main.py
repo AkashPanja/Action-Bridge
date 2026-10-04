@@ -30,6 +30,7 @@ from app.routers import (
     settings as settings_router,
     submissions,
     subscriptions,
+    triggers,
 )
 
 from .auth.router import router as auth_router
@@ -109,6 +110,7 @@ app.include_router(comments.router)
 app.include_router(invitations.router)
 app.include_router(subscriptions.router)
 app.include_router(attachments.router)
+app.include_router(triggers.router)
 
 # Serve uploaded files
 uploads_path = os.path.abspath(settings.upload_dir)

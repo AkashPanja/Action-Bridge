@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, History, Link, MessageSquare, Paperclip, Plus, ScanSearch, Send, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, FileText, History, Link, MessageSquare, Paperclip, Plus, ScanSearch, Send, Trash2, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import { Dialog } from "../../components/ui/Dialog";
 import { Input } from "../../components/ui/Input";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { AnimatedPage } from "../../components/shared/AnimatedPage";
@@ -12,8 +13,11 @@ import { SourceFilesPanel } from "../../components/extraction/SourceFilesPanel";
 import { useAuth } from "../../contexts/AuthContext";
 import { useDocument, useUpdateDocument } from "../../hooks/useDocuments";
 import { useDocumentType } from "../../hooks/useDocumentTypes";
+import { useSubmission } from "../../hooks/useExtraction";
+import { api } from "../../lib/api";
 import { formatDate } from "../../lib/utils";
 import type { AuditEvent } from "../../types";
+import type { SubmissionFile } from "../../types/extraction";
 
 const API_BASE = "/api/v1";
 
@@ -45,21 +49,27 @@ interface Attachment {
   created_at: string;
 }
 
-function confidenceColor(score: number | undefined): string {
-  if (score == null) return "border-surface-200 dark:border-surface-600";
+const NEUTRAL_BORDER = "border-surface-200 dark:border-surface-600";
+const NEUTRAL_BADGE = "bg-surface-100 text-surface-500 dark:bg-surface-700 dark:text-surface-400";
+
+function confidenceColor(score: number | undefined, isRequired = true): string {
+  // Optional fields never go red — only mandatory ones demand attention.
+  if (!isRequired) return NEUTRAL_BORDER;
+  if (score == null) return NEUTRAL_BORDER;
   if (score >= 0.85) return "border-emerald-400 dark:border-emerald-600";
   if (score >= 0.70) return "border-amber-400 dark:border-amber-600";
   return "border-accent-400 dark:border-accent-600";
 }
 
-function confidenceBadge(score: number | undefined) {
+function confidenceBadge(score: number | undefined, isRequired = true) {
   if (score == null) return null;
   const pct = Math.round(score * 100);
-  const color = score >= 0.85 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+  const color = !isRequired && score < 0.70 ? NEUTRAL_BADGE
+    : score >= 0.85 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
     : score >= 0.70 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
     : "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300";
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${color}`} title={`Confidence: ${pct}%`}>
+    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${color}`} title={`Confidence: ${pct}%${isRequired ? "" : " (optional field)"}`}>
       {pct}%
     </span>
   );
@@ -95,7 +105,7 @@ function AuditTimeline({ events }: { events: AuditEvent[] }) {
                 </p>
               ) : null}
               {event.old_value && event.new_value ? (
-                <div className="mt-1 flex gap-2 text-xs">
+                <div className="mt-1 flex min-w-0 flex-wrap gap-2 break-words text-xs">
                   <span className="rounded bg-accent-50 px-1.5 py-0.5 text-accent-600 dark:bg-accent-900/20 dark:text-accent-400">
                     {JSON.stringify(event.old_value)}
                   </span>
@@ -310,6 +320,354 @@ function AttachmentsSection({ projectId, documentId }: { projectId: string; docu
   );
 }
 
+function previewKind(mime: string, filename: string): "pdf" | "image" | "text" | null {
+  if (mime === "application/pdf" || filename.toLowerCase().endsWith(".pdf")) return "pdf";
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("text/") || /\.(txt|csv|md)$/i.test(filename)) return "text";
+  return null;
+}
+
+function DocumentPreview({ submissionId }: { submissionId: string | null }) {
+  const { data: submission, isLoading } = useSubmission(submissionId);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [url, setUrl] = useState<string | null>(null);
+  const [text, setText] = useState("");
+
+  const files = submission?.files ?? [];
+  const active: SubmissionFile | undefined =
+    files.find((f) => f.id === activeId)
+    ?? files.find((f) => previewKind(f.mime, f.filename) != null)
+    ?? files[0];
+  const kind = active ? previewKind(active.mime, active.filename) : null;
+
+  useEffect(() => {
+    setUrl(null);
+    setText("");
+    if (!submissionId || !active || !kind) return;
+    let alive = true;
+    let objectUrl: string | null = null;
+    (async () => {
+      try {
+        objectUrl = await api.submissions.fileBlob(submissionId, active.id);
+        if (!alive) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        if (kind === "text") {
+          setText((await (await fetch(objectUrl)).text()).slice(0, 20000));
+        }
+        setUrl(objectUrl);
+        objectUrl = null; // owned by state now
+      } catch {
+        if (alive) setUrl(null);
+      }
+    })();
+    return () => {
+      alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [submissionId, active?.id, kind]);
+
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <FileText className="h-4 w-4 text-surface-400" />
+        <h2 className="text-sm font-semibold text-surface-900 dark:text-surface-100">Document</h2>
+        {files.length > 1 ? (
+          <select
+            value={active?.id ?? ""}
+            onChange={(e) => setActiveId(e.target.value)}
+            className="ml-auto max-w-[45%] truncate rounded-lg border border-surface-200 bg-white px-2 py-1 text-xs dark:border-surface-600 dark:bg-surface-800"
+          >
+            {files.map((f) => (
+              <option key={f.id} value={f.id}>{f.filename}</option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-[50vh] w-full lg:h-[70vh]" />
+      ) : !active || !kind || !url ? (
+        <p className="rounded-xl bg-surface-50 px-4 py-10 text-center text-sm text-surface-400 dark:bg-surface-800">
+          {!active ? "No source file attached." : "Preview not available for this file type."}
+        </p>
+      ) : kind === "pdf" ? (
+        <iframe src={url} title={active.filename} className="h-[55vh] w-full rounded-xl border border-surface-200 dark:border-surface-700 lg:h-[70vh]" />
+      ) : kind === "image" ? (
+        <img src={url} alt={active.filename} className="max-h-[55vh] w-full rounded-xl border border-surface-200 object-contain dark:border-surface-700 lg:max-h-[70vh]" />
+      ) : (
+        <pre className="max-h-[55vh] overflow-auto rounded-xl bg-surface-100 p-4 font-mono text-xs dark:bg-surface-900 lg:max-h-[70vh]">{text}</pre>
+      )}
+    </div>
+  );
+}
+
+interface FieldInputProps {
+  kind: string;
+  format?: string;
+  enumOpts?: string[];
+  value: unknown;
+  onChange: (raw: string) => void;
+  disabled: boolean;
+  borderClass: string;
+  small?: boolean;
+}
+
+function FieldInput({ kind, format, enumOpts, value, onChange, disabled, borderClass, small }: FieldInputProps) {
+  const cls = `w-full border-2 bg-white text-surface-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${borderClass} ${
+    small ? "rounded-lg px-2 py-1.5 text-xs" : "rounded-xl px-4 py-2.5 text-sm"
+  }`;
+  if (enumOpts) {
+    return (
+      <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} disabled={disabled} className={cls}>
+        <option value="">Select...</option>
+        {enumOpts.map((opt) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    );
+  }
+  if (format === "date") {
+    return <input type="date" value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} disabled={disabled} className={cls} />;
+  }
+  if (kind === "number") {
+    return <input type="number" step="any" value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} disabled={disabled} className={cls} />;
+  }
+  if (kind === "boolean") {
+    return (
+      <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} disabled={disabled} className={cls}>
+        <option value="">Select...</option>
+        <option value="true">True</option>
+        <option value="false">False</option>
+      </select>
+    );
+  }
+  return <input type="text" value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} disabled={disabled} className={cls} />;
+}
+
+interface ExtractedDataFormProps {
+  formData: Record<string, unknown>;
+  schemaProperties: Record<string, unknown>;
+  required: string[];
+  confidenceScores: Record<string, unknown>;
+  canEdit: boolean;
+  comment: string;
+  setComment: (v: string) => void;
+  saveError: string;
+  hasChanges: boolean;
+  saving: boolean;
+  onFieldChange: (key: string, raw: string) => void;
+  onTableCellChange: (key: string, rowIndex: number, colKey: string, raw: string) => void;
+  onAddRow: (key: string) => void;
+  onRemoveRow: (key: string, rowIndex: number) => void;
+  onSave: () => void;
+  onReset: () => void;
+}
+
+function ExtractedDataForm(props: ExtractedDataFormProps) {
+  const {
+    formData, schemaProperties, required, confidenceScores, canEdit,
+    comment, setComment, saveError, hasChanges, saving,
+    onFieldChange, onTableCellChange, onAddRow, onRemoveRow, onSave, onReset,
+  } = props;
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-sm font-semibold text-surface-900 dark:text-surface-100">Extracted Data</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {Object.entries(formData).map(([key, value]) => {
+          const prop = schemaProperties[key] as Record<string, unknown> | undefined;
+          const propType = (prop?.type as string | undefined) ?? "string";
+          const propTitle = prop?.title as string | undefined;
+          const propEnum = prop?.enum as string[] | undefined;
+          const propFormat = prop?.format as string | undefined;
+          const isRequired = required.includes(key);
+          const score = confidenceScores[key];
+          const borderClass = typeof score === "number" ? confidenceColor(score, isRequired) : NEUTRAL_BORDER;
+          const label = (
+            <span className="flex flex-wrap items-center gap-1.5">
+              <span className="min-w-0 break-words">{propTitle ?? key}</span>
+              {isRequired ? <span className="text-accent-500">*</span> : null}
+              {typeof score === "number" ? confidenceBadge(score, isRequired) : null}
+            </span>
+          );
+
+          if (propType === "array") {
+            const items = prop?.items as Record<string, unknown> | undefined;
+            const itemProps = (items?.properties as Record<string, unknown>) ?? {};
+            const rows = (value as Array<Record<string, unknown>>) ?? [];
+            const rowScores = (score as Array<Record<string, number>> | undefined) ?? [];
+            const itemRequired = (items?.required as string[]) ?? [];
+            return (
+              <div key={key} className="col-span-full space-y-2 sm:col-span-2">
+                <label className="text-sm font-medium text-surface-700 dark:text-surface-300">
+                  <span className="flex items-center gap-1.5">
+                    {propTitle ?? key}
+                    {isRequired ? <span className="text-accent-500">*</span> : null}
+                  </span>
+                </label>
+                {/* Desktop table */}
+                <div className="hidden overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-600 sm:block">
+                  <table className="w-full min-w-[560px] text-sm">
+                    <thead>
+                      <tr className="bg-surface-50 dark:bg-surface-800">
+                        {Object.entries(itemProps).map(([colKey, colVal]) => {
+                          const colProp = colVal as Record<string, unknown>;
+                          return (
+                            <th key={colKey} className="px-3 py-2 text-left text-xs font-medium text-surface-500">
+                              {(colProp.title as string) ?? colKey}
+                              {itemRequired.includes(colKey) ? <span className="ml-0.5 text-accent-500">*</span> : null}
+                            </th>
+                          );
+                        })}
+                        <th className="w-10 px-2 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row, ri) => (
+                        <tr key={ri} className="border-t border-surface-100 dark:border-surface-700">
+                          {Object.entries(itemProps).map(([colKey, colVal]) => {
+                            const colProp = colVal as Record<string, unknown>;
+                            const colRequired = itemRequired.includes(colKey);
+                            const cellScore = rowScores[ri]?.[colKey];
+                            return (
+                              <td key={colKey} className="px-3 py-1.5">
+                                <FieldInput
+                                  kind={(colProp.type as string) ?? "string"}
+                                  format={colProp.format as string | undefined}
+                                  enumOpts={colProp.enum as string[] | undefined}
+                                  value={row[colKey]}
+                                  onChange={(v) => onTableCellChange(key, ri, colKey, v)}
+                                  disabled={!canEdit}
+                                  borderClass={confidenceColor(cellScore, colRequired)}
+                                  small
+                                />
+                                {confidenceBadge(cellScore, colRequired)}
+                              </td>
+                            );
+                          })}
+                          <td className="px-2 py-1.5 text-center">
+                            {canEdit && rows.length > 1 ? (
+                              <button
+                                type="button"
+                                onClick={() => onRemoveRow(key, ri)}
+                                className="rounded p-1 text-accent-400 hover:bg-accent-50 hover:text-accent-600 dark:hover:bg-accent-900/20"
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                              </button>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Mobile stacked cards — no horizontal cutoff */}
+                <div className="space-y-2 sm:hidden">
+                  {rows.map((row, ri) => (
+                    <div key={ri} className="rounded-xl border border-surface-200 p-3 dark:border-surface-700">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-surface-500">Row {ri + 1}</span>
+                        {canEdit && rows.length > 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => onRemoveRow(key, ri)}
+                            className="rounded p-1 text-accent-400 hover:bg-accent-50 hover:text-accent-600 dark:hover:bg-accent-900/20"
+                            aria-label={`Remove row ${ri + 1}`}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="space-y-2.5">
+                        {Object.entries(itemProps).map(([colKey, colVal]) => {
+                          const colProp = colVal as Record<string, unknown>;
+                          const colRequired = itemRequired.includes(colKey);
+                          const cellScore = rowScores[ri]?.[colKey];
+                          return (
+                            <div key={colKey} className="min-w-0">
+                              <span className="mb-1 flex flex-wrap items-center gap-1.5 text-xs font-medium text-surface-500">
+                                <span className="min-w-0 break-words">{(colProp.title as string) ?? colKey}</span>
+                                {colRequired ? <span className="text-accent-500">*</span> : null}
+                                {confidenceBadge(cellScore, colRequired)}
+                              </span>
+                              <FieldInput
+                                kind={(colProp.type as string) ?? "string"}
+                                format={colProp.format as string | undefined}
+                                enumOpts={colProp.enum as string[] | undefined}
+                                value={row[colKey]}
+                                onChange={(v) => onTableCellChange(key, ri, colKey, v)}
+                                disabled={!canEdit}
+                                borderClass={confidenceColor(cellScore, colRequired)}
+                                small
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {canEdit ? (
+                  <button
+                    type="button"
+                    onClick={() => onAddRow(key)}
+                    className="flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add Row
+                  </button>
+                ) : null}
+              </div>
+            );
+          }
+
+          return (
+            <div key={key} className="min-w-0 space-y-1.5">
+              <label className="text-sm font-medium text-surface-700 dark:text-surface-300">{label}</label>
+              <FieldInput
+                kind={propType}
+                format={propFormat}
+                enumOpts={propEnum}
+                value={value}
+                onChange={(v) => onFieldChange(key, v)}
+                disabled={!canEdit}
+                borderClass={borderClass}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {canEdit ? (
+        <div className="space-y-3 pt-2">
+          <Input
+            label="Comment (optional)"
+            placeholder="Add a note about this change..."
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            id="comment"
+          />
+          {saveError ? (
+            <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl bg-accent-50 px-4 py-2 text-sm text-accent-600 dark:bg-accent-900/20 dark:text-accent-400">{saveError}</motion.p>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={onSave} isLoading={saving} disabled={!hasChanges && !comment}>
+              Save Changes
+            </Button>
+            {hasChanges ? (
+              <Button variant="ghost" onClick={onReset}>
+                Reset
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function DocumentDetail() {
   const { projectId, docId } = useParams<{ projectId: string; docId: string }>();
   const navigate = useNavigate();
@@ -321,6 +679,23 @@ export function DocumentDetail() {
   const [comment, setComment] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(() => {
+    try {
+      return localStorage.getItem("docdetail:preview") !== "0";
+    } catch {
+      return true;
+    }
+  });
+
+  function togglePreview() {
+    setPreviewOpen((v) => {
+      try {
+        localStorage.setItem("docdetail:preview", v ? "0" : "1");
+      } catch { /* ignore */ }
+      return !v;
+    });
+  }
 
   useEffect(() => {
     if (docType?.schema_definition && Object.keys(formData).length === 0) {
@@ -393,6 +768,18 @@ export function DocumentDetail() {
       return { ...prev, [key]: rows };
     });
     setHasChanges(true);
+    setSaveError("");
+  }
+
+  function handleResetForm() {
+    const schema = docType?.schema_definition as { properties?: Record<string, unknown> } | undefined;
+    const existing = (doc?.extracted_data as Record<string, unknown>) ?? {};
+    const merged: Record<string, unknown> = {};
+    for (const key of Object.keys(schema?.properties ?? {})) {
+      merged[key] = key in existing ? existing[key] : "";
+    }
+    setFormData(merged);
+    setHasChanges(false);
     setSaveError("");
   }
 
@@ -483,6 +870,11 @@ export function DocumentDetail() {
             {doc.confidence_score != null ? ` · Avg confidence: ${Math.round(doc.confidence_score * 100)}%` : ""}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={togglePreview} title={previewOpen ? "Hide document preview" : "Show document preview"} className="hidden lg:inline-flex">
+            {previewOpen ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            <span className="hidden sm:inline">Preview</span>
+          </Button>
         {canEdit ? (
           <div className="flex items-center gap-2">
             <Button variant="danger" size="sm" onClick={handleReject} isLoading={updateDoc.isPending}>
@@ -493,274 +885,39 @@ export function DocumentDetail() {
             </Button>
           </div>
         ) : null}
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="space-y-4">
-            <h2 className="text-sm font-semibold text-surface-900 dark:text-surface-100">Extracted Data</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {Object.entries(formData).map(([key, value]) => {
-                const prop = schemaProperties[key] as Record<string, unknown> | undefined;
-                const propType = prop?.type as string | undefined;
-                const propTitle = prop?.title as string | undefined;
-                const propEnum = prop?.enum as string[] | undefined;
-                const propFormat = prop?.format as string | undefined;
-                const isRequired = required.includes(key);
-                const score = confidenceScores[key];
-
-                const borderClass = typeof score === "number" ? confidenceColor(score) : "border-surface-200 dark:border-surface-600";
-                const label = (
-                  <span className="flex items-center gap-1.5">
-                    {propTitle ?? key}
-                    {isRequired ? <span className="text-accent-500">*</span> : null}
-                    {typeof score === "number" ? confidenceBadge(score) : null}
-                  </span>
-                );
-
-                if (propEnum) {
-                  return (
-                    <div key={key} className="space-y-1.5">
-                      <label className="text-sm font-medium text-surface-700 dark:text-surface-300">{label}</label>
-                      <select
-                        value={String(value ?? "")}
-                        onChange={(e) => handleFieldChange(key, e.target.value)}
-                        disabled={!canEdit}
-                        className={`w-full rounded-xl border-2 bg-white px-4 py-2.5 text-sm text-surface-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${borderClass}`}
-                      >
-                        <option value="">Select...</option>
-                        {propEnum.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                }
-
-                if (propFormat === "date") {
-                  return (
-                    <div key={key} className="space-y-1.5">
-                      <label className="text-sm font-medium text-surface-700 dark:text-surface-300">{label}</label>
-                      <input
-                        type="date"
-                        value={String(value ?? "")}
-                        onChange={(e) => handleFieldChange(key, e.target.value)}
-                        disabled={!canEdit}
-                        className={`w-full rounded-xl border-2 bg-white px-4 py-2.5 text-sm text-surface-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${borderClass}`}
-                      />
-                    </div>
-                  );
-                }
-
-                if (propType === "number") {
-                  return (
-                    <div key={key} className="space-y-1.5">
-                      <label className="text-sm font-medium text-surface-700 dark:text-surface-300">{label}</label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={String(value ?? "")}
-                        onChange={(e) => handleFieldChange(key, e.target.value)}
-                        disabled={!canEdit}
-                        className={`w-full rounded-xl border-2 bg-white px-4 py-2.5 text-sm text-surface-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${borderClass}`}
-                      />
-                    </div>
-                  );
-                }
-
-                if (propType === "boolean") {
-                  return (
-                    <div key={key} className="space-y-1.5">
-                      <label className="text-sm font-medium text-surface-700 dark:text-surface-300">{label}</label>
-                      <select
-                        value={String(value ?? "")}
-                        onChange={(e) => handleFieldChange(key, e.target.value)}
-                        disabled={!canEdit}
-                        className={`w-full rounded-xl border-2 bg-white px-4 py-2.5 text-sm text-surface-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${borderClass}`}
-                      >
-                        <option value="">Select...</option>
-                        <option value="true">True</option>
-                        <option value="false">False</option>
-                      </select>
-                    </div>
-                  );
-                }
-
-                if (propType === "array") {
-                  const items = prop?.items as Record<string, unknown> | undefined;
-                  const itemProps = (items?.properties as Record<string, unknown>) ?? {};
-                  const rows = (value as Array<Record<string, unknown>>) ?? [];
-                  const rowScores = (score as Array<Record<string, number>> | undefined) ?? [];
-                  const itemRequired = (items?.required as string[]) ?? [];
-                  return (
-                    <div key={key} className="col-span-2 space-y-2">
-                      <label className="text-sm font-medium text-surface-700 dark:text-surface-300">
-                        <span className="flex items-center gap-1.5">
-                          {propTitle ?? key}
-                          {isRequired ? <span className="text-accent-500">*</span> : null}
-                        </span>
-                      </label>
-                      <div className="overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-600">
-                        <table className="w-full min-w-[560px] text-sm">
-                          <thead>
-                            <tr className="bg-surface-50 dark:bg-surface-800">
-                              {Object.entries(itemProps).map(([colKey, colVal]) => {
-                                const colProp = colVal as Record<string, unknown>;
-                                return (
-                                  <th key={colKey} className="px-3 py-2 text-left text-xs font-medium text-surface-500">
-                                    {colProp.title as string ?? colKey}
-                                    {itemRequired.includes(colKey) ? <span className="ml-0.5 text-accent-500">*</span> : null}
-                                  </th>
-                                );
-                              })}
-                              <th className="w-10 px-2 py-2"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {rows.map((row, ri) => (
-                              <tr key={ri} className="border-t border-surface-100 dark:border-surface-700">
-                                {Object.entries(itemProps).map(([colKey, colVal]) => {
-                                  const colProp = colVal as Record<string, unknown>;
-                                  const colType = (colProp.type as string) ?? "string";
-                                  const colFormat = colProp.format as string;
-                                  const colEnum = colProp.enum as string[] | undefined;
-                                  const cellScore = rowScores[ri]?.[colKey];
-                                  const cellBorder = confidenceColor(cellScore);
-                                  return (
-                                    <td key={colKey} className="px-3 py-1.5">
-                                      {colEnum ? (
-                                        <select
-                                          value={String(row[colKey] ?? "")}
-                                          onChange={(e) => handleTableCellChange(key, ri, colKey, e.target.value)}
-                                          disabled={!canEdit}
-                                          className={`w-full rounded-lg border-2 bg-white px-2 py-1.5 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${cellBorder}`}
-                                        >
-                                          <option value="">Select...</option>
-                                          {colEnum.map((opt) => (
-                                            <option key={opt} value={opt}>{opt}</option>
-                                          ))}
-                                        </select>
-                                      ) : colFormat === "date" ? (
-                                        <input
-                                          type="date"
-                                          value={String(row[colKey] ?? "")}
-                                          onChange={(e) => handleTableCellChange(key, ri, colKey, e.target.value)}
-                                          disabled={!canEdit}
-                                          className={`w-full rounded-lg border-2 bg-white px-2 py-1.5 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${cellBorder}`}
-                                        />
-                                      ) : colType === "number" ? (
-                                        <input
-                                          type="number"
-                                          step="any"
-                                          value={String(row[colKey] ?? "")}
-                                          onChange={(e) => handleTableCellChange(key, ri, colKey, e.target.value)}
-                                          disabled={!canEdit}
-                                          className={`w-full rounded-lg border-2 bg-white px-2 py-1.5 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${cellBorder}`}
-                                        />
-                                      ) : colType === "boolean" ? (
-                                        <select
-                                          value={String(row[colKey] ?? "")}
-                                          onChange={(e) => handleTableCellChange(key, ri, colKey, e.target.value)}
-                                          disabled={!canEdit}
-                                          className={`w-full rounded-lg border-2 bg-white px-2 py-1.5 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${cellBorder}`}
-                                        >
-                                          <option value="">Select...</option>
-                                          <option value="true">True</option>
-                                          <option value="false">False</option>
-                                        </select>
-                                      ) : (
-                                        <input
-                                          type="text"
-                                          value={String(row[colKey] ?? "")}
-                                          onChange={(e) => handleTableCellChange(key, ri, colKey, e.target.value)}
-                                          disabled={!canEdit}
-                                          className={`w-full rounded-lg border-2 bg-white px-2 py-1.5 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${cellBorder}`}
-                                        />
-                                      )}
-                                      {confidenceBadge(cellScore)}
-                                    </td>
-                                  );
-                                })}
-                                <td className="px-2 py-1.5 text-center">
-                                  {canEdit && rows.length > 1 ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeTableRow(key, ri)}
-                                      className="rounded p-1 text-accent-400 hover:bg-accent-50 hover:text-accent-600 dark:hover:bg-accent-900/20"
-                                    >
-                                      <XCircle className="h-3.5 w-3.5" />
-                                    </button>
-                                  ) : null}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      {canEdit ? (
-                        <button
-                          type="button"
-                          onClick={() => addTableRow(key)}
-                          className="flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
-                        >
-                          <Plus className="h-3.5 w-3.5" /> Add Row
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div key={key} className="space-y-1.5">
-                    <label className="text-sm font-medium text-surface-700 dark:text-surface-300">{label}</label>
-                    <input
-                      type="text"
-                      value={String(value ?? "")}
-                      onChange={(e) => handleFieldChange(key, e.target.value)}
-                      disabled={!canEdit}
-                      className={`w-full rounded-xl border-2 bg-white px-4 py-2.5 text-sm text-surface-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:bg-surface-800 dark:text-surface-100 ${borderClass}`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-
-            {canEdit ? (
-              <div className="space-y-3 pt-2">
-                <Input
-                  label="Comment (optional)"
-                  placeholder="Add a note about this change..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  id="comment"
-                />
-                {saveError ? (
-                  <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl bg-accent-50 px-4 py-2 text-sm text-accent-600 dark:bg-accent-900/20 dark:text-accent-400">{saveError}</motion.p>
-                ) : null}
-                <div className="flex gap-2">
-                  <Button onClick={handleSave} isLoading={updateDoc.isPending} disabled={!hasChanges && !comment}>
-                    Save Changes
-                  </Button>
-                  {hasChanges ? (
-                    <Button variant="ghost" onClick={() => {
-                      const schema = docType?.schema_definition as { properties?: Record<string, unknown> } | undefined;
-                      const existing = (doc?.extracted_data as Record<string, unknown>) ?? {};
-                      const merged: Record<string, unknown> = {};
-                      for (const key of Object.keys(schema?.properties ?? {})) {
-                        merged[key] = key in existing ? existing[key] : "";
-                      }
-                      setFormData(merged);
-                      setHasChanges(false);
-                      setSaveError("");
-                    }}>
-                      Reset
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
+      <div className={`grid items-start gap-6 ${previewOpen ? "lg:grid-cols-2" : ""}`}>
+        {previewOpen ? (
+          <Card className="hidden lg:sticky lg:top-4 lg:block">
+            <DocumentPreview submissionId={doc.submission_id ?? null} />
           </Card>
+        ) : null}
+        <Card className="min-w-0 space-y-4">
+          <ExtractedDataForm
+            formData={formData}
+            schemaProperties={schemaProperties}
+            required={required}
+            confidenceScores={confidenceScores}
+            canEdit={canEdit}
+            comment={comment}
+            setComment={setComment}
+            saveError={saveError}
+            hasChanges={hasChanges}
+            saving={updateDoc.isPending}
+            onFieldChange={handleFieldChange}
+            onTableCellChange={handleTableCellChange}
+            onAddRow={addTableRow}
+            onRemoveRow={removeTableRow}
+            onSave={handleSave}
+            onReset={handleResetForm}
+          />
+        </Card>
+      </div>
 
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <Card>
             <CommentsSection projectId={projectId!} documentId={docId!} />
           </Card>
@@ -813,6 +970,25 @@ export function DocumentDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Mobile: floating bubble opens the source document as a sheet */}
+      <button
+        type="button"
+        onClick={() => setSheetOpen(true)}
+        aria-label="View source document"
+        className="fixed bottom-5 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-xl transition-transform hover:scale-105 active:scale-95 lg:hidden"
+      >
+        <FileText className="h-6 w-6" />
+      </button>
+      <Dialog
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        title="Document"
+        description={doc.document_type_name ?? "Source file"}
+        className="sm:max-w-3xl"
+      >
+        <DocumentPreview submissionId={doc.submission_id ?? null} />
+      </Dialog>
     </AnimatedPage>
   );
 }

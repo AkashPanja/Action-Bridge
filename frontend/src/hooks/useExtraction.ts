@@ -145,3 +145,50 @@ export function usePromptTemplateMutations(projectId: string) {
     }),
   };
 }
+
+export function useTriggers(projectId: string) {
+  return useQuery({
+    queryKey: ["triggers", projectId],
+    queryFn: () => api.triggers.list(projectId),
+    enabled: !!projectId,
+  });
+}
+
+export function useTriggerMutations(projectId: string) {
+  const qc = useQueryClient();
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["triggers", projectId] });
+    qc.invalidateQueries({ queryKey: ["trigger-runs"] });
+  };
+  return {
+    create: useMutation({
+      mutationFn: (data: Record<string, unknown>) => api.triggers.create(projectId, data),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+        api.triggers.update(projectId, id, data),
+      onSuccess: invalidate,
+    }),
+    remove: useMutation({
+      mutationFn: (id: string) => api.triggers.remove(projectId, id),
+      onSuccess: invalidate,
+    }),
+    pause: useMutation({
+      mutationFn: (id: string) => api.triggers.pause(projectId, id),
+      onSuccess: invalidate,
+    }),
+    resume: useMutation({
+      mutationFn: (id: string) => api.triggers.resume(projectId, id),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+export function useTriggerRuns(projectId: string, triggerId: string | null) {
+  return useQuery({
+    queryKey: ["trigger-runs", projectId, triggerId],
+    queryFn: () => api.triggers.runs(projectId, triggerId!),
+    enabled: !!(projectId && triggerId),
+  });
+}

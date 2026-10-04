@@ -10,6 +10,11 @@ import asyncio
 import logging
 import os
 import signal
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from app.services import job_service
 from app.services import pipeline  # noqa: F401 - registers extract/webhook job kinds
@@ -61,6 +66,7 @@ async def main() -> None:
         except Exception as exc:  # noqa: BLE001 - worker must survive a fresh/migrating DB
             logger.warning("Could not requeue interrupted jobs: %s", exc)
 
+    email_cycle = 0
     while not _shutdown.is_set():
         try:
             async with AsyncSessionLocal() as db:
@@ -75,6 +81,24 @@ async def main() -> None:
                 continue
             max_flight = int(settings.get("max_jobs_in_flight", 8))
             completed = await run_once(max_jobs_in_flight=max_flight)
+            # Email triggers on a slower cadence (~every 30s): cheap no-op
+            # when nothing is due. Skipped entirely while paused above.
+            email_cycle += 1
+            if email_cycle >= 15:
+                email_cycle = 0
+                try:
+                    async with AsyncSessionLocal() as db:
+                        from app.services import email_poll
+
+                        outcomes = await email_poll.poll_due_triggers(db)
+                    for outcome in outcomes:
+                        if outcome.get("error"):
+                            logger.warning(
+                                "Trigger %s poll error: %s",
+                                outcome.get("trigger_id"), outcome.get("error"),
+                            )
+                except Exception:
+                    logger.exception("Email poll cycle error; backing off.")
             await asyncio.sleep(0 if completed else poll_s)
         except Exception:  # noqa: BLE001 - worker loop must never die
             logger.exception("Worker loop error; backing off.")
