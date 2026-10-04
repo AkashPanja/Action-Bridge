@@ -1,41 +1,60 @@
-# ActionBridge on Synology NAS - ALL IN ONE container.
+# ActionBridge on Synology NAS - app (all-in-one) + Postgres sidecar.
 #
-# Single container runs: API + baked-in frontend + background worker,
-# with SQLite (one file) instead of Postgres. Lowest resource use.
+# Two containers: db (Postgres, reliable under concurrency) and app
+# (API + baked-in frontend + background worker in one container).
 #
 # HOW TO USE
 #  1. On your Synology: Container Manager -> Project -> Create.
 #     - Project name: actionbridge
 #     - Paste this file as docker-compose.yml.
 #  2. Secrets below are pre-generated and ready to use. Keep this file private.
-#  3. Press Next, review, Done. One container starts everything.
+#  3. Press Next, review, Done. Pulls images and starts db + app.
 #  4. Open http://192.168.0.111:9347
-#     Log in / register the first user, then add your Groq provider key and
-#     Gmail mailbox credential in the app UI.
+#     Complete the setup wizard (fresh Postgres starts empty), then add your
+#     Groq provider key and Gmail mailbox credential in the app UI.
 #
 # NOTES
-#  - First start takes 1-2 minutes (image pull).
-#  - Everything (database + uploads) lives in the single `appdata` volume.
-#    Back it up from Container Manager if the data matters.
-#  - GUNICORN_WORKERS=1 on purpose: SQLite is happiest with a single writer.
-#    Plenty for home/NAS use; use the 4-container compose for heavy loads.
-#  - Stopping the project sends SIGTERM to the API; the background worker
-#    exits with it (give it the default 10s grace period).
+#  - First start takes 1-3 minutes (postgres init + image pull).
+#  - Everything lives in Docker volumes (pgdata, appdata). Back them up from
+#    Container Manager if the data matters.
+#  - The old SQLite file (if any) sits unused in the appdata volume; the app
+#    now uses Postgres. You can ignore it.
+#  - GUNICORN_WORKERS=2 is safe on Postgres; raise for heavy loads.
 
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: doc_action_center
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "9345:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   app:
     image: akashpanja/actionbridge:latest
     restart: unless-stopped
     ports:
       - "9347:8000"
     entrypoint: ["sh", "/app/docker-entrypoint.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
-      DATABASE_URL: sqlite+aiosqlite:////app/data/app.db
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/doc_action_center
       SECRET_KEY: oZqZXth4lneWZHDtWDDfsVwoDU_3nDh_7Q9k6_QXKeOSlhRVI70favxDS4nCsJ-P
       APP_ENCRYPTION_KEY: zbpz3w2HId1SnYt22nv1RW8_0OgB1ShLMxxUZnz5FL4=
       SETUP_COMPLETE_FILE: /app/data/.setup-complete
       DEBUG: "false"
-      GUNICORN_WORKERS: "1"
+      GUNICORN_WORKERS: "2"
       CORS_ORIGINS: https://actionbridge.bnfkquodqjp.uk,http://192.168.0.111:9347,http://localhost:9347,http://localhost:5173
       FRONTEND_URL: https://actionbridge.bnfkquodqjp.uk
       UPLOAD_DIR: /app/data/uploads
@@ -43,4 +62,5 @@ services:
       - appdata:/app/data
 
 volumes:
+  pgdata:
   appdata:
