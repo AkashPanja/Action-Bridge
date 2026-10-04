@@ -1,0 +1,75 @@
+# ActionBridge on Synology NAS (Container Manager / docker compose).
+#
+# HOW TO USE
+#  1. On your Synology: Container Manager -> Project -> Create.
+#     - Project name: actionbridge (or anything you like)
+#     - "Upload" this file as docker-compose.yml  (or paste its contents,
+#       then set the Source to "Create docker-compose.yml").
+#  2. Secrets below are pre-generated and ready to use. Keep this file private.
+#  3. Press Next, review, Done. Container Manager pulls the images and starts
+#     db + app + worker automatically.
+#  4. Open http://<your-nas-ip>:8080  (find the IP in DSM Control Panel).
+#     Log in / register the first user, then add your Groq provider key and
+#     Gmail mailbox credential in the app UI.
+#
+# NOTES
+#  - Port 8080 (not 80): Synology DSM itself uses 80/443 for its own web UI.
+#  - First start takes 1-3 minutes (postgres init + image pull).
+#  - Data lives in Docker volumes (pgdata, uploads) and survives restarts.
+#    Back them up from Container Manager if the data matters.
+#  - Update later with: project dropdown -> Re-build / pull latest images.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: doc_action_center
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: akashpanja/actionbridge:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/doc_action_center
+      SECRET_KEY: oZqZXth4lneWZHDtWDDfsVwoDU_3nDh_7Q9k6_QXKeOSlhRVI70favxDS4nCsJ-P
+      APP_ENCRYPTION_KEY: zbpz3w2HId1SnYt22nv1RW8_0OgB1ShLMxxUZnz5FL4=
+      DEBUG: "false"
+      CORS_ORIGINS: http://localhost:8080
+      FRONTEND_URL: http://localhost:8080
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+
+  worker:
+    image: akashpanja/actionbridge:latest
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/doc_action_center
+      SECRET_KEY: oZqZXth4lneWZHDtWDDfsVwoDU_3nDh_7Q9k6_QXKeOSlhRVI70favxDS4nCsJ-P
+      APP_ENCRYPTION_KEY: zbpz3w2HId1SnYt22nv1RW8_0OgB1ShLMxxUZnz5FL4=
+      DEBUG: "false"
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+
+volumes:
+  pgdata:
+  uploads:
