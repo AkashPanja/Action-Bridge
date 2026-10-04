@@ -121,3 +121,18 @@ app.mount("/uploads", StaticFiles(directory=uploads_path), name="uploads")
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# Single-image mode: when the frontend dist is baked in at app/static
+# (see the root Dockerfile), serve it with an SPA fallback. Registered last
+# so every /api/* route, /health, /docs and /uploads keep precedence.
+_frontend_dist = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+if os.path.isdir(_frontend_dist):
+    from fastapi.responses import FileResponse
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _spa_fallback(full_path: str):
+        candidate = os.path.abspath(os.path.join(_frontend_dist, full_path))
+        if full_path and candidate.startswith(_frontend_dist) and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(os.path.join(_frontend_dist, "index.html"))

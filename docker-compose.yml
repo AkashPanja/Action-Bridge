@@ -16,32 +16,45 @@ services:
       timeout: 5s
       retries: 5
 
-  api:
-    image: akashpanja/actionbridge-api:latest
-    # build: ./backend   # uncomment to build locally instead
+  # Single combined image: FastAPI + baked-in frontend (one port).
+  # Images are built by CI (.github/workflows/docker.yml) and pushed to
+  # akashpanja/actionbridge. To build locally instead, uncomment `build: .`
+  app:
+    image: akashpanja/actionbridge:latest
+    # build: .
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "80:8000"
     depends_on:
       db:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/doc_action_center
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production-use-a-long-random-string}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-}
       DEBUG: ${DEBUG:-false}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:80,http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       UPLOAD_DIR: /app/uploads
     volumes:
       - uploads:/app/uploads
 
-  frontend:
-    image: akashpanja/actionbridge-frontend:latest
-    # build: ./frontend  # uncomment to build locally instead
+  worker:
+    image: akashpanja/actionbridge:latest
+    # build: .
     restart: unless-stopped
-    ports:
-      - "80:80"
+    command: ["python", "-m", "app.worker"]
     depends_on:
-      - api
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/doc_action_center
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-use-a-long-random-string}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-}
+      DEBUG: ${DEBUG:-false}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
 
 volumes:
   pgdata:
