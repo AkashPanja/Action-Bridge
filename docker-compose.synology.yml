@@ -52,8 +52,8 @@ services:
       SECRET_KEY: oZqZXth4lneWZHDtWDDfsVwoDU_3nDh_7Q9k6_QXKeOSlhRVI70favxDS4nCsJ-P
       APP_ENCRYPTION_KEY: zbpz3w2HId1SnYt22nv1RW8_0OgB1ShLMxxUZnz5FL4=
       DEBUG: "false"
-      CORS_ORIGINS: http://192.168.1.100:9347,http://localhost:9347,http://localhost:5173
-      FRONTEND_URL: http://192.168.1.100:9347
+      CORS_ORIGINS: http://192.168.0.111:9347,http://localhost:9347,http://localhost:5173
+      FRONTEND_URL: http://192.168.0.111:9347
       UPLOAD_DIR: /app/uploads
     volumes:
       - uploads:/app/uploads
