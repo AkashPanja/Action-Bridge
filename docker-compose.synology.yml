@@ -26,7 +26,7 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: uat
+      POSTGRES_DB: actioncenter_uat
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -49,7 +49,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/uat
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/actioncenter_uat
       SECRET_KEY: oZqZXth4lneWZHDtWDDfsVwoDU_3nDh_7Q9k6_QXKeOSlhRVI70favxDS4nCsJ-P
       APP_ENCRYPTION_KEY: zbpz3w2HId1SnYt22nv1RW8_0OgB1ShLMxxUZnz5FL4=
       SETUP_COMPLETE_FILE: /app/data/.setup-complete
