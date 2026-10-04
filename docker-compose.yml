@@ -36,6 +36,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:5173}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       UPLOAD_DIR: /app/uploads
+      SETUP_COMPLETE_FILE: /app/uploads/.setup-complete
     volumes:
       - uploads:/app/uploads
 

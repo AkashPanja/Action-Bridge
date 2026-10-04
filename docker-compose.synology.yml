@@ -33,6 +33,7 @@ services:
       DATABASE_URL: sqlite+aiosqlite:////app/data/app.db
       SECRET_KEY: oZqZXth4lneWZHDtWDDfsVwoDU_3nDh_7Q9k6_QXKeOSlhRVI70favxDS4nCsJ-P
       APP_ENCRYPTION_KEY: zbpz3w2HId1SnYt22nv1RW8_0OgB1ShLMxxUZnz5FL4=
+      SETUP_COMPLETE_FILE: /app/data/.setup-complete
       DEBUG: "false"
       GUNICORN_WORKERS: "1"
       CORS_ORIGINS: https://actionbridge.bnfkquodqjp.uk,http://192.168.0.111:9347,http://localhost:9347,http://localhost:5173
