@@ -42,6 +42,36 @@ class TestAuthSetup:
         assert "already" in resp.json()["detail"].lower()
 
 
+    async def test_setup_required_when_marker_but_no_users(self, client: AsyncClient):
+        # Stray marker file (e.g. volume reuse across redeploys) must not
+        # dead-end a database with zero users: the wizard is the only screen
+        # that can work there.
+        import os as _os
+
+        from app.auth.service import check_setup_required
+        from app.config import settings
+        from app.database import AsyncSessionLocal
+
+        original = settings.setup_complete_file
+        settings.setup_complete_file = ".test-setup-complete"
+        open(".test-setup-complete", "w").close()
+        try:
+            async with AsyncSessionLocal() as db:
+                assert await check_setup_required(db) is True
+            resp = await client.get("/api/v1/auth/status")
+            assert resp.json()["setup_required"] is True
+            resp = await client.post("/api/v1/auth/setup", json={
+                "name": "Fresh Admin",
+                "email": "fresh@test.com",
+                "password": "StrongPass1!",
+            })
+            assert resp.status_code == 201
+        finally:
+            settings.setup_complete_file = original
+            if _os.path.exists(".test-setup-complete"):
+                _os.remove(".test-setup-complete")
+
+
 class TestAuthRegister:
     async def test_register_new_user(self, client: AsyncClient, setup_complete):
         resp = await client.post("/api/v1/auth/register", json={

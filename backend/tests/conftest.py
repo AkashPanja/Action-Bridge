@@ -60,11 +60,18 @@ async def db_session() -> AsyncGenerator:
 
 
 @pytest_asyncio.fixture
-async def setup_complete():
+async def setup_complete(db_session):
     from app.config import settings
     original = settings.setup_complete_file
     settings.setup_complete_file = TEST_SETUP_FILE
     open(TEST_SETUP_FILE, "w").close()
+    db_session.add(User(
+        email="setup@test.com",
+        password_hash="x",
+        name="Setup User",
+        role="admin",
+    ))
+    await db_session.commit()
     yield
     settings.setup_complete_file = original
     if os.path.exists(TEST_SETUP_FILE):

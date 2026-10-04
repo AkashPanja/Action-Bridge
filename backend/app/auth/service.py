@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import ApiKey, User
@@ -193,7 +193,20 @@ async def list_api_keys(db: AsyncSession, project_id: str) -> list[dict]:
 
 
 async def check_setup_required(db: AsyncSession | None = None) -> bool:
-    return not os.path.exists(settings.setup_complete_file)
+    # Fresh system (no marker) always needs setup. Additionally, a database
+    # with zero users can never be logged into, so the wizard is the only
+    # correct screen there — regardless of any stray marker file left behind
+    # by volume reuse across redeploys.
+    if not os.path.exists(settings.setup_complete_file):
+        return True
+    if db is not None:
+        try:
+            count = await db.scalar(select(func.count(User.id)))
+        except Exception:
+            count = 1  # table missing/unreadable: don't force setup on error
+        if not count:
+            return True
+    return False
 
 
 async def create_initial_admin(db: AsyncSession, data: SetupRequest) -> User:
