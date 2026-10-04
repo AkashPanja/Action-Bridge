@@ -1,87 +1,45 @@
-# ActionBridge on Synology NAS (Container Manager / docker compose).
+# ActionBridge on Synology NAS - ALL IN ONE container.
+#
+# Single container runs: API + baked-in frontend + background worker,
+# with SQLite (one file) instead of Postgres. Lowest resource use.
 #
 # HOW TO USE
 #  1. On your Synology: Container Manager -> Project -> Create.
-#     - Project name: actionbridge (or anything you like)
-#     - "Upload" this file as docker-compose.yml  (or paste its contents,
-#       then set the Source to "Create docker-compose.yml").
+#     - Project name: actionbridge
+#     - Paste this file as docker-compose.yml.
 #  2. Secrets below are pre-generated and ready to use. Keep this file private.
-#  3. Press Next, review, Done. Container Manager pulls the images and starts
-#     db + api + frontend + worker automatically.
-#  4. Open http://<your-nas-ip>:9347  (find the IP in DSM Control Panel).
+#  3. Press Next, review, Done. One container starts everything.
+#  4. Open http://192.168.0.111:9347
 #     Log in / register the first user, then add your Groq provider key and
 #     Gmail mailbox credential in the app UI.
 #
 # NOTES
-#  - Same ports as before: db 9345, api 9346, frontend 9347.
-#  - First start takes 1-3 minutes (postgres init + image pull).
-#  - Data lives in Docker volumes (pgdata, uploads) and survives restarts.
-#    Back them up from Container Manager if the data matters.
-#  - The worker service is required: without it extraction jobs never run.
-#  - APP_ENCRYPTION_KEY is required: without it mailbox/API credentials break.
-#  - Update later with: project dropdown -> Re-build / pull latest images.
+#  - First start takes 1-2 minutes (image pull).
+#  - Everything (database + uploads) lives in the single `appdata` volume.
+#    Back it up from Container Manager if the data matters.
+#  - GUNICORN_WORKERS=1 on purpose: SQLite is happiest with a single writer.
+#    Plenty for home/NAS use; use the 4-container compose for heavy loads.
+#  - Stopping the project sends SIGTERM to the API; the background worker
+#    exits with it (give it the default 10s grace period).
 
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: doc_action_center
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "9345:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  api:
-    image: akashpanja/actionbridge-api:latest
+  app:
+    image: akashpanja/actionbridge:latest
     restart: unless-stopped
     ports:
-      - "9346:8000"
-    depends_on:
-      db:
-        condition: service_healthy
+      - "9347:8000"
+    entrypoint: ["sh", "/app/docker-entrypoint.sh"]
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/doc_action_center
+      DATABASE_URL: sqlite+aiosqlite:////app/data/app.db
       SECRET_KEY: oZqZXth4lneWZHDtWDDfsVwoDU_3nDh_7Q9k6_QXKeOSlhRVI70favxDS4nCsJ-P
       APP_ENCRYPTION_KEY: zbpz3w2HId1SnYt22nv1RW8_0OgB1ShLMxxUZnz5FL4=
       DEBUG: "false"
+      GUNICORN_WORKERS: "1"
       CORS_ORIGINS: http://192.168.0.111:9347,http://localhost:9347,http://localhost:5173
       FRONTEND_URL: http://192.168.0.111:9347
-      UPLOAD_DIR: /app/uploads
+      UPLOAD_DIR: /app/data/uploads
     volumes:
-      - uploads:/app/uploads
-
-  frontend:
-    image: akashpanja/actionbridge-frontend:latest
-    restart: unless-stopped
-    ports:
-      - "9347:80"
-    depends_on:
-      - api
-
-  worker:
-    image: akashpanja/actionbridge-api:latest
-    restart: unless-stopped
-    command: ["python", "-m", "app.worker"]
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/doc_action_center
-      SECRET_KEY: oZqZXth4lneWZHDtWDDfsVwoDU_3nDh_7Q9k6_QXKeOSlhRVI70favxDS4nCsJ-P
-      APP_ENCRYPTION_KEY: zbpz3w2HId1SnYt22nv1RW8_0OgB1ShLMxxUZnz5FL4=
-      DEBUG: "false"
-      UPLOAD_DIR: /app/uploads
-    volumes:
-      - uploads:/app/uploads
+      - appdata:/app/data
 
 volumes:
-  pgdata:
-  uploads:
+  appdata:
