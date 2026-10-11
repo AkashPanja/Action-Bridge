@@ -495,10 +495,32 @@ function ExtractedDataForm(props: ExtractedDataFormProps) {
           );
 
           if (propType === "array") {
+            if (!Array.isArray(value)) {
+              // Model sometimes returns a table field as plain text/null.
+              // Show it as a normal input instead of crashing the page.
+              return (
+                <div key={key} className="min-w-0 space-y-1.5 sm:col-span-2">
+                  <label className="text-sm font-medium text-surface-700 dark:text-surface-300">{label}</label>
+                  <FieldInput
+                    kind="string"
+                    format={undefined}
+                    enumOpts={undefined}
+                    value={value}
+                    onChange={(v) => onFieldChange(key, v)}
+                    disabled={!canEdit}
+                    borderClass={borderClass}
+                  />
+                </div>
+              );
+            }
             const items = prop?.items as Record<string, unknown> | undefined;
             const itemProps = (items?.properties as Record<string, unknown>) ?? {};
-            const rows = (value as Array<Record<string, unknown>>) ?? [];
-            const rowScores = (score as Array<Record<string, number>> | undefined) ?? [];
+            const rows = Array.isArray(value)
+              ? (value as Array<Record<string, unknown>>)
+              : [];
+            const rowScores = Array.isArray(score)
+              ? (score as Array<Record<string, number>>)
+              : [];
             const itemRequired = (items?.required as string[]) ?? [];
             return (
               <div key={key} className="col-span-full space-y-2 sm:col-span-2">
