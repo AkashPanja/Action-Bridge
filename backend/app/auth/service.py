@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import ApiKey, User
@@ -13,9 +13,6 @@ from app.auth.schemas import CreateUserRequest, RegisterRequest, SetupRequest
 from app.models.api_key_scope import ApiKeyProjectScope
 from app.config import settings
 from app.models.audit_event import AuditEvent
-from app.models.document_instance import DocumentInstance
-from app.models.document_type import DocumentType
-from app.models.project import Project
 from app.models.settings import AppSetting
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -243,13 +240,14 @@ async def get_setting(db: AsyncSession, key: str) -> dict | None:
 
 
 async def reset_system(db: AsyncSession) -> None:
-    await db.execute(delete(AuditEvent))
-    await db.execute(delete(DocumentInstance))
-    await db.execute(delete(ApiKey))
-    await db.execute(delete(DocumentType))
-    await db.execute(delete(AppSetting))
-    await db.execute(delete(Project))
-    await db.execute(delete(User))
+    """Factory reset: wipe every application table (children before parents
+    via reverse dependency order, so FK constraints never trip), then drop
+    the setup marker so the wizard reappears. Alembic version history is
+    left untouched. New tables are picked up automatically."""
+    from app.models.project import Base
+
+    for table in reversed(Base.metadata.sorted_tables):
+        await db.execute(table.delete())
     await db.commit()
     if os.path.exists(settings.setup_complete_file):
         os.remove(settings.setup_complete_file)
