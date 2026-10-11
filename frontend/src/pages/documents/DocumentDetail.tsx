@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, FileText, History, Link, MessageSquare, Paperclip, Plus, ScanSearch, Send, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, FileJson, FileText, History, Link, MessageSquare, Paperclip, Plus, ScanSearch, Send, Trash2, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "../../components/ui/Badge";
@@ -13,6 +13,7 @@ import { SourceFilesPanel } from "../../components/extraction/SourceFilesPanel";
 import { useAuth } from "../../contexts/AuthContext";
 import { useDocument, useUpdateDocument } from "../../hooks/useDocuments";
 import { useDocumentType } from "../../hooks/useDocumentTypes";
+import { useProcessing } from "../../hooks/useExtraction";
 import { useSubmission } from "../../hooks/useExtraction";
 import { api } from "../../lib/api";
 import { formatDate } from "../../lib/utils";
@@ -695,6 +696,7 @@ export function DocumentDetail() {
   const navigate = useNavigate();
   const { data: doc, isLoading } = useDocument(projectId!, docId!, true);
   const { data: docType } = useDocumentType(projectId!, doc?.document_type_id ?? "");
+  const { data: processing } = useProcessing();
   const updateDoc = useUpdateDocument(projectId!);
 
   const [formData, setFormData] = useState<Record<string, unknown>>({});
@@ -702,6 +704,7 @@ export function DocumentDetail() {
   const [hasChanges, setHasChanges] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(() => {
     try {
       return localStorage.getItem("docdetail:preview") !== "0";
@@ -861,6 +864,7 @@ export function DocumentDetail() {
   const required = schema?.required ?? [];
   const confidenceScores = (doc.confidence_scores ?? {}) as Record<string, unknown>;
   const canEdit = doc.status === "pending_review" || doc.status === "received";
+  const devMode = processing?.dev_mode === true;
 
   return (
     <AnimatedPage>
@@ -897,6 +901,12 @@ export function DocumentDetail() {
             {previewOpen ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             <span className="hidden sm:inline">Preview</span>
           </Button>
+          {devMode ? (
+            <Button variant="outline" size="sm" onClick={() => setShowRaw((v) => !v)} title="Show the raw extracted JSON">
+              <FileJson className="h-4 w-4" />
+              <span className="hidden sm:inline">Raw JSON</span>
+            </Button>
+          ) : null}
         {canEdit ? (
           <div className="flex items-center gap-2">
             <Button variant="danger" size="sm" onClick={handleReject} isLoading={updateDoc.isPending}>
@@ -909,6 +919,28 @@ export function DocumentDetail() {
         ) : null}
         </div>
       </div>
+
+      {devMode && showRaw ? (
+        <Card className="mb-6 border-dashed">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-surface-900 dark:text-surface-100">
+              Raw LLM output (dev mode)
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => setShowRaw(false)}>Hide</Button>
+          </div>
+          <pre className="max-h-[60vh] overflow-auto rounded-xl bg-surface-100 p-4 font-mono text-[11px] text-surface-700 dark:bg-surface-900 dark:text-surface-200">
+            {JSON.stringify(
+              {
+                extracted_data: doc.extracted_data,
+                confidence_scores: doc.confidence_scores,
+                extraction_meta: doc.extraction_meta,
+              },
+              null,
+              2,
+            )}
+          </pre>
+        </Card>
+      ) : null}
 
       <div className={`grid items-start gap-6 ${previewOpen ? "lg:grid-cols-2" : ""}`}>
         {previewOpen ? (
