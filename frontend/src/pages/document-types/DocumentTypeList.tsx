@@ -140,19 +140,19 @@ export function DocumentTypeList({ projectId: propProjectId }: Props) {
             {docTypes.map((dt) => (
               <motion.div key={dt.id} variants={item}>
                 <Card className="group relative overflow-hidden">
-                  <div className="mb-3 flex items-center gap-3">
+                  <div className="mb-3 flex items-start gap-3">
                     {canWrite ? (
                       <input
                         type="checkbox"
                         checked={selected.has(dt.id)}
                         onChange={() => toggle(dt.id)}
-                        className="h-4 w-4 shrink-0 rounded border-surface-300 text-brand-500 focus:ring-brand-500 dark:border-surface-600"
+                        className="mt-1 h-4 w-4 shrink-0 rounded border-surface-300 text-brand-500 focus:ring-brand-500 dark:border-surface-600"
                       />
                     ) : null}
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
                       <FileType className="h-5 w-5" />
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h3 className="truncate text-sm font-semibold text-surface-900 dark:text-surface-100">
                         {dt.name}
                       </h3>
@@ -162,11 +162,12 @@ export function DocumentTypeList({ projectId: propProjectId }: Props) {
                         {dt.confidence_threshold != null ? ` · auto-approve ≥ ${dt.confidence_threshold}` : ""}
                       </p>
                     </div>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
                     <Badge variant="default">
                       {formatDate(dt.created_at).split(",")[0]}
                     </Badge>
                     {canWrite ? (
-                      <>
+                      <div className="flex gap-1">
                         <button
                           onClick={() => setEditingDocType({ id: dt.id, name: dt.name, schema_definition: dt.schema_definition, validation_rules: dt.validation_rules, confidence_threshold: dt.confidence_threshold })}
                           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-surface-400 transition-all hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-900/20"
@@ -211,8 +212,9 @@ export function DocumentTypeList({ projectId: propProjectId }: Props) {
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                      </>
+                      </div>
                     ) : null}
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {Object.keys(
