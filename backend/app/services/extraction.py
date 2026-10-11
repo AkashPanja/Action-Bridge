@@ -307,6 +307,24 @@ async def extract_one(
             try:
                 data = parse_json_response(result.text)
                 issues = validate_data_against_schema(data, schema)
+                # Degenerate model output can be syntactically valid JSON yet
+                # carry keys the schema never defined (e.g. a truncated line
+                # re-emitted as "key: value"). Identifier-shaped extras (line
+                # items under conventional names, warnings, overall scores)
+                # are an accepted pattern and pass through; only non-identifier
+                # keys prove degeneration — those fail validation so the retry
+                # loop re-asks instead of storing garbage as facts.
+                allowed = set((schema.get("properties") or {}).keys())
+                allowed |= {"warnings", "overall_confidence"}
+                unknown = [
+                    k for k in data
+                    if k not in allowed
+                    and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", str(k))
+                ]
+                if unknown:
+                    issues = issues + [
+                        f"unknown fields not in schema: {unknown}"
+                    ]
             except Exception as exc:
                 issues = [f"unparseable output: {exc}"]
                 data = {}
