@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { FileType, Inbox, Key, LayoutDashboard, Mail, ScanSearch, Users, Workflow } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AnimatedPage } from "../../components/shared/AnimatedPage";
 import { PageHeader } from "../../components/shared/PageHeader";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
 import { useAuth } from "../../contexts/AuthContext";
 import { useProject } from "../../hooks/useProjects";
 import { can } from "../../lib/rbac";
@@ -19,7 +21,8 @@ import { TriggersPage } from "../extraction/TriggersPage";
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
   const [searchParams] = useSearchParams();
-  const { data: project } = useProject(projectId!);
+  const navigate = useNavigate();
+  const { data: project, isLoading: projectLoading, isError: projectError } = useProject(projectId!);
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
 
@@ -45,6 +48,26 @@ export function ProjectDetail() {
     const t = searchParams.get("tab");
     if (t && tabs.some((tab) => tab.id === t)) setActiveTab(t);
   }, [searchParams]);
+
+  if (!projectLoading && (projectError || !project)) {
+    return (
+      <AnimatedPage>
+        <PageHeader
+          title="Project not found"
+          description="It may have been deleted, or the link is wrong."
+        />
+        <Card>
+          <p className="py-8 text-center text-sm text-surface-400">
+            This project doesn't exist or was deleted. Its documents, types, and
+            settings were removed with it.
+          </p>
+          <div className="flex justify-center pb-2">
+            <Button onClick={() => navigate("/")}>Back to projects</Button>
+          </div>
+        </Card>
+      </AnimatedPage>
+    );
+  }
 
   return (
     <AnimatedPage>
