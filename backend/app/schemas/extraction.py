@@ -113,6 +113,7 @@ class ProcessingUpdate(BaseModel):
     default_timeout_s: int | None = None
     paused: bool | None = None
     auto_approve_threshold: float | None = None
+    dev_mode: bool | None = None
 
 
 # --- Jobs ---

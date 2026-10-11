@@ -116,6 +116,7 @@ export interface ProcessingSettings {
   default_timeout_s: number;
   paused: boolean;
   auto_approve_threshold?: number;
+  dev_mode?: boolean;
 }
 
 export interface CandidateType {

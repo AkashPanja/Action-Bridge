@@ -7,7 +7,7 @@ import { useProcessing, useUpdateProcessing } from "../../hooks/useExtraction";
 export function ProcessingPage() {
   const { data, isLoading } = useProcessing();
   const update = useUpdateProcessing();
-  const [form, setForm] = useState({ cpu_workers: 4, max_jobs_in_flight: 8, default_retries: 3, default_timeout_s: 120, paused: false, auto_approve_threshold: 0.92 });
+  const [form, setForm] = useState({ cpu_workers: 4, max_jobs_in_flight: 8, default_retries: 3, default_timeout_s: 120, paused: false, auto_approve_threshold: 0.92, dev_mode: false });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
@@ -20,6 +20,7 @@ export function ProcessingPage() {
         default_timeout_s: data.default_timeout_s,
         paused: data.paused,
         auto_approve_threshold: data.auto_approve_threshold ?? 0.92,
+        dev_mode: data.dev_mode ?? false,
       });
     }
   }, [data]);
@@ -52,6 +53,11 @@ export function ProcessingPage() {
               <input type="checkbox" checked={form.paused} onChange={(e) => set("paused", e.target.checked)}
                 className="rounded border-surface-300 text-brand-600 focus:ring-brand-500" />
               Pause all processing (workers idle, queue kept)
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-surface-700 dark:text-surface-300">
+              <input type="checkbox" checked={form.dev_mode} onChange={(e) => set("dev_mode", e.target.checked)}
+                className="rounded border-surface-300 text-brand-600 focus:ring-brand-500" />
+              Dev mode (show raw job result JSON in the queue)
             </label>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input label="CPU workers (parsing, rendering, download)" type="number" min={1} max={32}

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
-import { useJobMutations, useProjectJobs } from "../../hooks/useExtraction";
+import { useJobMutations, useProcessing, useProjectJobs } from "../../hooks/useExtraction";
 import type { Job, JobFile } from "../../types/extraction";
 import { cn, formatDate } from "../../lib/utils";
 
@@ -64,6 +64,8 @@ export function JobsPage({ projectId }: { projectId: string }) {
     3000,
   );
   const mut = useJobMutations(projectId);
+  const { data: processing } = useProcessing();
+  const devMode = processing?.dev_mode === true;
 
   const jobs = data?.jobs ?? [];
 
@@ -132,9 +134,11 @@ export function JobsPage({ projectId }: { projectId: string }) {
                   {(job.files ?? []).length === 0 ? (
                     <p className="text-xs text-surface-400">No files attached to this job.</p>
                   ) : null}
-                  <pre className="max-h-48 overflow-auto rounded-xl bg-surface-100 p-3 font-mono text-[11px] text-surface-600 dark:bg-surface-900 dark:text-surface-300">
-                    {JSON.stringify({ job_id: job.id, submission_id: job.submission_id, result: job.result, usage: job.usage }, null, 2)}
-                  </pre>
+                  {devMode ? (
+                    <pre className="max-h-48 overflow-auto rounded-xl bg-surface-100 p-3 font-mono text-[11px] text-surface-600 dark:bg-surface-900 dark:text-surface-300">
+                      {JSON.stringify({ job_id: job.id, submission_id: job.submission_id, result: job.result, usage: job.usage }, null, 2)}
+                    </pre>
+                  ) : null}
                 </div>
               ) : null}
             </Card>

@@ -30,4 +30,7 @@ DEFAULT_PROCESSING = {
     # Extraction auto-approve: documents whose every field scores at or above
     # this are approved without human review (FR-8.1b). 0 disables it.
     "auto_approve_threshold": 0.92,
+    # Dev mode: surfaces raw internals in the UI (job result JSON, etc.).
+    # Display-only flag; changes no pipeline behavior.
+    "dev_mode": False,
 }

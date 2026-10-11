@@ -38,6 +38,8 @@ def _validate(values: dict):
                 raise ValueError(f"{key} must be between {lo} and {hi}")
     if "paused" in values and not isinstance(values["paused"], bool):
         raise ValueError("paused must be a boolean")
+    if "dev_mode" in values and not isinstance(values["dev_mode"], bool):
+        raise ValueError("dev_mode must be a boolean")
 
 
 async def get_settings(db: AsyncSession, scope: str = GLOBAL_SCOPE) -> dict:
