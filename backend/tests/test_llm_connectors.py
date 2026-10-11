@@ -273,3 +273,71 @@ class TestClaude:
             await adapter.complete(LlmRequest(messages=[]))
         assert exc.value.transient is False
         assert exc.value.status == 400
+
+
+class TestUnionSchemaFallback:
+    UNION_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "invoice_number": {"type": "string"},
+            "total_amount": {"type": ["number", "null"]},
+        },
+    }
+    CLEAN_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "invoice_number": {"type": "string"},
+            "total_amount": {"type": "number"},
+        },
+    }
+
+    def test_has_union_types(self):
+        from app.services.llm.openai_compatible import has_union_types
+
+        assert has_union_types(self.UNION_SCHEMA) is True
+        assert has_union_types(self.CLEAN_SCHEMA) is False
+        assert has_union_types({}) is False
+
+    async def test_union_schema_skips_strict_mode(self, monkeypatch):
+        from app.services.llm.base import LlmRequest
+        from app.services.llm.openai_compatible import OpenAiCompatibleAdapter
+
+        monkeypatch.setattr("httpx.AsyncClient", FakeClient)
+        RESPONSES.clear()
+        REQUEST_LOG.clear()
+        RESPONSES.append((200, chat_ok()))
+        adapter = OpenAiCompatibleAdapter(
+            base_url="https://api.groq.com/openai/v1",
+            model="qwen/qwen3.8-27b",
+            api_key="k",
+            use_json_schema=True,
+            use_json_object=True,
+        )
+        result = await adapter.complete(
+            LlmRequest(messages=[{"role": "user", "content": "hi json"}],
+                       schema=self.UNION_SCHEMA)
+        )
+        assert REQUEST_LOG[0]["json"]["response_format"]["type"] == "json_object"
+        assert result.json_mode == "json_object"
+
+    async def test_clean_schema_keeps_strict_mode(self, monkeypatch):
+        from app.services.llm.base import LlmRequest
+        from app.services.llm.openai_compatible import OpenAiCompatibleAdapter
+
+        monkeypatch.setattr("httpx.AsyncClient", FakeClient)
+        RESPONSES.clear()
+        REQUEST_LOG.clear()
+        RESPONSES.append((200, chat_ok()))
+        adapter = OpenAiCompatibleAdapter(
+            base_url="https://api.openai.com/v1",
+            model="gpt-4o-mini",
+            api_key="k",
+            use_json_schema=True,
+            use_json_object=True,
+        )
+        result = await adapter.complete(
+            LlmRequest(messages=[{"role": "user", "content": "hi json"}],
+                       schema=self.CLEAN_SCHEMA)
+        )
+        assert REQUEST_LOG[0]["json"]["response_format"]["type"] == "json_schema"
+        assert result.json_mode == "json_schema"

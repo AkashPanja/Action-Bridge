@@ -17,6 +17,22 @@ from app.services.llm.base import LlmAdapter, LlmRequest, LlmResult, ProviderErr
 _FIXED_TEMPERATURE_RE = re.compile(r"^(o1|o3|o4)([\W_]|$)|deepseek-reasoner", re.IGNORECASE)
 
 
+def has_union_types(schema: object) -> bool:
+    """Whether a JSON Schema uses union-typed fields (`"type": [...]`).
+
+    Strict structured-output mode and unions don't mix on several providers
+    (observed: the model collapses to required-only output instead of
+    erroring), so schemas with unions fall back to `json_object` mode.
+    """
+    if isinstance(schema, dict):
+        if isinstance(schema.get("type"), list):
+            return True
+        return any(has_union_types(v) for v in schema.values())
+    if isinstance(schema, list):
+        return any(has_union_types(v) for v in schema)
+    return False
+
+
 class OpenAiCompatibleAdapter(LlmAdapter):
     def __init__(
         self,
@@ -122,6 +138,9 @@ class OpenAiCompatibleAdapter(LlmAdapter):
 
         last_error: ProviderError | None = None
         for mode in modes:
+            if (mode == "json_schema" and request.schema
+                    and has_union_types(request.schema)):
+                continue  # unions collapse strict-mode output; use json_object
             req = LlmRequest(
                 messages=messages,
                 schema=request.schema,
