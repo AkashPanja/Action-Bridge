@@ -43,3 +43,6 @@ worker_*.txt
 # Uploads (runtime data)
 uploads/
 filestore/
+
+# Knowledge graph artifacts (generated per machine)
+graphify-out/
